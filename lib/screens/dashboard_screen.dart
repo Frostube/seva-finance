@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
-import 'analytics_screen.dart';
+import 'expenses_screen.dart';
+import 'linked_cards_screen.dart';
+import 'notifications_screen.dart';
+import 'recent_activity_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final Function(int) onNavigate;
+  
+  const DashboardScreen({
+    super.key,
+    required this.onNavigate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +59,12 @@ class DashboardScreen extends StatelessWidget {
                               IconButton(
                                 icon: const Icon(Icons.notifications_outlined),
                                 color: AppTheme.darkGreen,
-                                onPressed: () {},
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const NotificationsScreen(),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 right: 12,
@@ -77,7 +91,7 @@ class DashboardScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Cards',
+                            'Wallets',
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               color: AppTheme.darkGreen.withOpacity(0.7),
@@ -96,7 +110,7 @@ class DashboardScreen extends StatelessWidget {
                                 color: Colors.white,
                               ),
                             ),
-                            onPressed: () {},
+                            onPressed: () => _navigateWithFade(context),
                           ),
                         ],
                       ),
@@ -114,17 +128,17 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           _buildCard(
                             '\$17,298.92',
-                            '•••• 7381',
+                            'Main Wallet',
                             AppTheme.darkGreen,
                           ),
                           const SizedBox(width: 16),
                           _buildCard(
                             '\$3,421.63',
-                            '•••• 7391',
-                            Color(0xFF1E1E1E),
+                            'Groceries',
+                            const Color(0xFF1E1E1E),
                           ),
                           const SizedBox(width: 16),
-                          _buildAddCard(),
+                          _buildAddCard(context),
                         ],
                       ),
                     ),
@@ -145,7 +159,7 @@ class DashboardScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(Icons.send),
+                              icon: const Icon(CupertinoIcons.arrow_up, size: 20),
                               label: const Text('Send'),
                             ),
                           ),
@@ -161,7 +175,7 @@ class DashboardScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(Icons.download),
+                              icon: const Icon(CupertinoIcons.arrow_down, size: 20),
                               label: const Text('Request'),
                             ),
                           ),
@@ -175,7 +189,7 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ),
                             child: IconButton(
-                              icon: Icon(
+                              icon: const Icon(
                                 Icons.grid_view_rounded,
                                 color: AppTheme.darkGreen,
                               ),
@@ -196,7 +210,7 @@ class DashboardScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Recent Activity',
+                                'Activity',
                                 style: GoogleFonts.inter(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
@@ -204,7 +218,12 @@ class DashboardScreen extends StatelessWidget {
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () {},
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RecentActivityScreen(),
+                                  ),
+                                ),
                                 icon: const Text('See Details'),
                                 label: const Icon(
                                   Icons.chevron_right,
@@ -250,91 +269,13 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // Bottom Navigation Bar
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 8,
-                  bottom: 16,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(Icons.home_rounded, true, context),
-                    _buildNavItem(Icons.analytics_outlined, false, context),
-                    _buildScanButton(),
-                    _buildNavItem(Icons.credit_card_outlined, false, context),
-                    _buildNavItem(Icons.person_outline, false, context),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, bool isSelected, BuildContext context) {
-    return IconButton(
-      icon: Icon(
-        icon,
-        color: isSelected ? AppTheme.darkGreen : Colors.grey,
-        size: 28,
-      ),
-      onPressed: () {
-        if (icon == Icons.analytics_outlined) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildScanButton() {
-    return SizedBox(
-      width: 56,
-      height: 56,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.darkGreen,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.darkGreen.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: IconButton(
-          icon: const Icon(
-            Icons.document_scanner_outlined,
-            color: Colors.white,
-            size: 28,
-          ),
-          onPressed: () {},
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCard(String balance, String cardNumber, Color color) {
+  Widget _buildCard(String balance, String label, Color color) {
     return Container(
       width: 300,
       padding: const EdgeInsets.all(24),
@@ -351,30 +292,41 @@ class DashboardScreen extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Icon and Label Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                balance,
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getWalletIcon(label),
                   color: Colors.white,
+                  size: 20,
                 ),
               ),
-              Icon(
-                Icons.visibility_outlined,
-                color: Colors.white.withOpacity(0.8),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
+          const Spacer(),
+          // Balance
           Text(
-            cardNumber,
+            balance,
             style: GoogleFonts.inter(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.8),
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
           ),
         ],
@@ -382,36 +334,54 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAddCard() {
-    return Container(
-      width: 300,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.darkGreen.withOpacity(0.1),
-          width: 2,
+  IconData _getWalletIcon(String label) {
+    switch (label.toLowerCase()) {
+      case 'main wallet':
+        return CupertinoIcons.money_dollar_circle_fill;
+      case 'groceries':
+        return CupertinoIcons.cart_fill;
+      case 'kid\'s wallet':
+        return CupertinoIcons.person_2_fill;
+      default:
+        return CupertinoIcons.money_dollar;
+    }
+  }
+
+  Widget _buildAddCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _navigateWithFade(context),
+      child: Container(
+        width: 300,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey[200]!,
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_circle_outline,
-            size: 48,
-            color: AppTheme.darkGreen.withOpacity(0.5),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                size: 48,
+                color: AppTheme.darkGreen.withOpacity(0.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Add New Wallet',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: AppTheme.darkGreen.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Add New Card',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: AppTheme.darkGreen.withOpacity(0.7),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -487,6 +457,18 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  void _navigateWithFade(BuildContext context) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const WalletManagementScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
     );
   }
 } 
