@@ -44,11 +44,10 @@ class AppTheme {
         primaryColor: primaryGreen,
         scaffoldBackgroundColor: backgroundColor,
         // Color scheme configuration
-        colorScheme: ColorScheme.light(
+        colorScheme: const ColorScheme.light(
           primary: primaryGreen,
           secondary: lightGreen,
           surface: backgroundColor,
-          background: backgroundColor,
           onPrimary: Colors.white,
         ),
         // Text theme configuration
@@ -61,32 +60,32 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
             // Full-width button
-            minimumSize: MaterialStateProperty.all(
+            minimumSize: WidgetStateProperty.all(
               const Size(double.infinity, 56),
             ),
             // Rounded corners
-            shape: MaterialStateProperty.all(
+            shape: WidgetStateProperty.all(
               RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
             ),
             // Subtle elevation
-            elevation: MaterialStateProperty.all(2),
+            elevation: WidgetStateProperty.all(2),
             // Background color with press state
-            backgroundColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.pressed)) {
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
                 return darkerGreen;
               }
               return darkGreen;
             }),
             // Overlay color for ripple effect
-            overlayColor: MaterialStateProperty.all(
+            overlayColor: WidgetStateProperty.all(
               darkerGreen.withOpacity(0.1),
             ),
             // Text color - now using darkerGreen to match "Spending" text
-            foregroundColor: MaterialStateProperty.all(paleGreen),
+            foregroundColor: WidgetStateProperty.all(paleGreen),
             // Text style with matching color
-            textStyle: MaterialStateProperty.all(buttonText.copyWith(
+            textStyle: WidgetStateProperty.all(buttonText.copyWith(
               color: paleGreen,
               fontWeight: FontWeight.w400,
             )),

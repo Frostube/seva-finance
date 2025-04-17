@@ -13,13 +13,13 @@ class WalletManagementScreen extends StatelessWidget {
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16.0),
-          children: [
+          children: const [
             // Placeholder for wallet management content
-            const Text(
+            Text(
               'Manage your payment methods and linked accounts here.',
               style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             // Add more wallet management UI components here
           ],
         ),

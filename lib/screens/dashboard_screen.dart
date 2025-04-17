@@ -2,18 +2,337 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
-import 'expenses_screen.dart';
+import '../theme/colors.dart';
 import 'linked_cards_screen.dart';
 import 'notifications_screen.dart';
-import 'recent_activity_screen.dart';
+import 'recent_expenses_screen.dart';
+import '../services/wallet_service.dart';
+import '../services/savings_service.dart';
+import '../models/wallet.dart';
+import '../models/expense.dart';
+import '../services/expense_service.dart';
+import 'edit_wallet_screen.dart';
+import 'set_savings_goal_sheet.dart';
+import 'set_spending_alert_sheet.dart';
+import 'goals_and_alerts_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:async';
+import '../services/storage_service.dart';
+import 'transaction_detail_screen.dart';
+import 'package:seva_finance/widgets/expense_tile.dart';
+import '../services/notification_service.dart';
 
-class DashboardScreen extends StatelessWidget {
-  final Function(int) onNavigate;
-  
-  const DashboardScreen({
-    super.key,
-    required this.onNavigate,
-  });
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late WalletService _walletService;
+  late ExpenseService _expenseService;
+  List<Wallet> _wallets = [];
+  late StreamSubscription<BoxEvent> _walletBoxSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _walletService = Provider.of<WalletService>(context, listen: false);
+    _expenseService = ExpenseService(
+      Provider.of<StorageService>(context, listen: false),
+      Hive.box<double>('budget'),
+      Hive.box<Expense>('expenses'),
+      _walletService,
+      Provider.of<NotificationService>(context, listen: false),
+    );
+    _loadWallets();
+    
+    // Listen for wallet changes
+    _walletBoxSubscription = Hive.box<Wallet>('wallets').watch().listen((event) {
+      _loadWallets();
+    });
+  }
+
+  @override
+  void dispose() {
+    _walletBoxSubscription.cancel();
+    super.dispose();
+  }
+
+  void _loadWallets() {
+    setState(() {
+      _wallets = _walletService.getAllWallets();
+    });
+  }
+
+  Widget _buildWalletCard(Wallet wallet) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditWalletScreen(
+              wallet: wallet,
+              onWalletUpdated: _loadWallets,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 300,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Color(wallet.colorValue),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Color(wallet.colorValue).withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            if (wallet.isPrimary)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        CupertinoIcons.star_fill,
+                        size: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Primary',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        wallet.icon,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      wallet.name,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  NumberFormat.currency(
+                    symbol: '\$',
+                    decimalDigits: wallet.balance.truncateToDouble() == wallet.balance ? 0 : 2,
+                  ).format(wallet.balance),
+                  style: GoogleFonts.inter(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                if (wallet.budget != null && wallet.budget! > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Budget: ${NumberFormat.currency(
+                      symbol: '\$',
+                      decimalDigits: wallet.budget!.truncateToDouble() == wallet.budget ? 0 : 2,
+                    ).format(wallet.budget!)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddGoalSheet(Wallet wallet) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext bottomSheetContext) => SetSavingsGoalSheet(
+        walletId: wallet.id,
+        savingsService: Provider.of<SavingsService>(context, listen: false),
+        onGoalAdded: () {
+          // First close the bottom sheet
+          Navigator.pop(bottomSheetContext);
+          // Then update the state
+          setState(() {});
+          // Show confirmation
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Savings goal added successfully',
+                style: GoogleFonts.inter(),
+              ),
+              backgroundColor: const Color(0xFF1B4332),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddAlertSheet(Wallet wallet) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext bottomSheetContext) => SetSpendingAlertSheet(
+        walletId: wallet.id,
+        savingsService: Provider.of<SavingsService>(context, listen: false),
+        onAlertAdded: () {
+          // First close the bottom sheet
+          Navigator.pop(bottomSheetContext);
+          // Then update the state
+          setState(() {});
+          // Show confirmation
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Spending alert added successfully',
+                style: GoogleFonts.inter(),
+              ),
+              backgroundColor: const Color(0xFF1B4332),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _navigateToGoalsAndAlerts(Wallet wallet) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GoalsAndAlertsScreen(
+          walletId: wallet.id,
+          savingsService: Provider.of<SavingsService>(context, listen: false),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _navigateWithFade(context),
+      child: Container(
+        width: 300,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey[200]!,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                size: 48,
+                color: AppTheme.darkGreen.withOpacity(0.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Add New Wallet',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: AppTheme.darkGreen.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,24 +378,33 @@ class DashboardScreen extends StatelessWidget {
                               IconButton(
                                 icon: const Icon(Icons.notifications_outlined),
                                 color: AppTheme.darkGreen,
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const NotificationsScreen(),
-                                  ),
-                                ),
+                                onPressed: () {
+                                  Provider.of<NotificationService>(context, listen: false).markAsRead();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NotificationsScreen(),
+                                    ),
+                                  );
+                                },
                               ),
-                              Positioned(
-                                right: 12,
-                                top: 12,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
+                              Consumer<NotificationService>(
+                                builder: (context, notificationService, child) {
+                                  return notificationService.hasUnreadNotifications
+                                      ? Positioned(
+                                          right: 12,
+                                          top: 12,
+                                          child: Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink();
+                                },
                               ),
                             ],
                           ),
@@ -118,7 +446,7 @@ class DashboardScreen extends StatelessWidget {
 
                     // Balance and Cards Section
                     SizedBox(
-                      height: 200,
+                      height: 220, // Increased from 200 to accommodate buttons
                       child: ListView(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -126,18 +454,10 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         scrollDirection: Axis.horizontal,
                         children: [
-                          _buildCard(
-                            '\$17,298.92',
-                            'Main Wallet',
-                            AppTheme.darkGreen,
-                          ),
-                          const SizedBox(width: 16),
-                          _buildCard(
-                            '\$3,421.63',
-                            'Groceries',
-                            const Color(0xFF1E1E1E),
-                          ),
-                          const SizedBox(width: 16),
+                          ..._wallets.map((wallet) => Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: _buildWalletCard(wallet),
+                          )),
                           _buildAddCard(context),
                         ],
                       ),
@@ -150,7 +470,9 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {},
+                              onPressed: _wallets.isNotEmpty 
+                                ? () => _showAddGoalSheet(_wallets.first)
+                                : () => _showNoWalletDialog(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.darkGreen,
                                 foregroundColor: Colors.white,
@@ -159,14 +481,16 @@ class DashboardScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(CupertinoIcons.arrow_up, size: 20),
-                              label: const Text('Send'),
+                              icon: const Icon(CupertinoIcons.money_dollar_circle, size: 20),
+                              label: const Text('Goal'),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {},
+                              onPressed: _wallets.isNotEmpty 
+                                ? () => _showAddAlertSheet(_wallets.first)
+                                : () => _showNoWalletDialog(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.paleGreen,
                                 foregroundColor: AppTheme.darkGreen,
@@ -175,8 +499,8 @@ class DashboardScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(CupertinoIcons.arrow_down, size: 20),
-                              label: const Text('Request'),
+                              icon: const Icon(CupertinoIcons.bell, size: 20),
+                              label: const Text('Alert'),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -190,81 +514,22 @@ class DashboardScreen extends StatelessWidget {
                             ),
                             child: IconButton(
                               icon: const Icon(
-                                Icons.grid_view_rounded,
+                                CupertinoIcons.list_bullet,
                                 color: AppTheme.darkGreen,
                               ),
-                              onPressed: () {},
+                              onPressed: _wallets.isNotEmpty 
+                                ? () => _navigateToGoalsAndAlerts(_wallets.first)
+                                : () => _showNoWalletDialog(),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // Recent Activity
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Activity',
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.darkGreen,
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const RecentActivityScreen(),
-                                  ),
-                                ),
-                                icon: const Text('See Details'),
-                                label: const Icon(
-                                  Icons.chevron_right,
-                                  size: 20,
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppTheme.darkGreen,
-                                  textStyle: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTransactionItem(
-                            'Dribbble',
-                            'Today, 16:32',
-                            '-\$120',
-                            'Transfer',
-                            Colors.pink,
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTransactionItem(
-                            'Wilson Mango',
-                            'Today, 10:12',
-                            '-\$240',
-                            'Transfer',
-                            Colors.orange,
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTransactionItem(
-                            'Abram Botosh',
-                            'Yesterday',
-                            '+\$450',
-                            'Income',
-                            Colors.blue,
-                          ),
-                        ],
-                      ),
-                    ),
+                    // Recent Expenses Preview
+                    _buildRecentExpensesPreview(),
+
+                    const SizedBox(height: 100), // Space for FAB
                   ],
                 ),
               ),
@@ -275,188 +540,172 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCard(String balance, String label, Color color) {
-    return Container(
-      width: 300,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon and Label Row
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _getWalletIcon(label),
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          // Balance
-          Text(
-            balance,
-            style: GoogleFonts.inter(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+  Widget _buildExpensePreviewItem(Expense expense) {
+    final formatter = NumberFormat.currency(symbol: '\$');
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => TransactionDetailScreen(
+              expense: expense,
+              expenseService: _expenseService,
+              onExpenseUpdated: () => setState(() {}),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getWalletIcon(String label) {
-    switch (label.toLowerCase()) {
-      case 'main wallet':
-        return CupertinoIcons.money_dollar_circle_fill;
-      case 'groceries':
-        return CupertinoIcons.cart_fill;
-      case 'kid\'s wallet':
-        return CupertinoIcons.person_2_fill;
-      default:
-        return CupertinoIcons.money_dollar;
-    }
-  }
-
-  Widget _buildAddCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _navigateWithFade(context),
-      child: Container(
-        width: 300,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey[200]!,
-            width: 1,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                size: 48,
-                color: AppTheme.darkGreen.withOpacity(0.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Add New Wallet',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: AppTheme.darkGreen.withOpacity(0.7),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionItem(
-    String name,
-    String date,
-    String amount,
-    String type,
-    Color avatarColor,
-  ) {
-    return Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: avatarColor.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              name[0],
-              style: GoogleFonts.inter(
-                color: avatarColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.darkGreen,
-                ),
-              ),
-              Text(
-                date,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppTheme.darkGreen.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
           children: [
-            Text(
-              amount,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: amount.startsWith('+') ? Colors.green : AppTheme.darkGreen,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9F1EC),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getCategoryIcon(expense.category),
+                color: const Color(0xFF1B4332),
+                size: 20,
               ),
             ),
-            Text(
-              type,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppTheme.darkGreen.withOpacity(0.6),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    expense.category,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (expense.note != null && expense.note!.isNotEmpty)
+                    Text(
+                      expense.note!,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
               ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatter.format(expense.amount),
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM d').format(expense.date),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'rent':
+        return CupertinoIcons.house_fill;
+      case 'groceries':
+        return CupertinoIcons.cart_fill;
+      case 'transport':
+        return CupertinoIcons.car_fill;
+      case 'shopping':
+        return CupertinoIcons.bag_fill;
+      case 'entertainment':
+        return CupertinoIcons.film_fill;
+      case 'bills':
+        return CupertinoIcons.doc_text_fill;
+      case 'health':
+        return CupertinoIcons.heart_fill;
+      default:
+        return CupertinoIcons.money_dollar_circle_fill;
+    }
+  }
+
+  Widget _buildExpensePreviewSection(String title, List<Expense> expenses) {
+    if (expenses.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
+          ),
+        ),
+        ...expenses.take(2).map((expense) => _buildExpensePreviewItem(expense)),
       ],
+    );
+  }
+
+  Widget _buildRecentExpensesPreview() {
+    return FutureBuilder<Map<String, List<Expense>>>(
+      future: _expenseService.getExpensesByTimeline(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text('No recent expenses'),
+          );
+        }
+
+        final groupedExpenses = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                'Recent Expenses',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            for (var entry in groupedExpenses.entries)
+              if (entry.value.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                ...entry.value.take(3).map((expense) => ExpenseTile(expense: expense)),
+              ],
+          ],
+        );
+      },
     );
   }
 
@@ -468,6 +717,48 @@ class DashboardScreen extends StatelessWidget {
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
+      ),
+    );
+  }
+
+  void _showNoWalletDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'No Wallet Found',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Please create a wallet first before setting up goals or alerts.',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateWithFade(context); // Navigate to wallet creation
+            },
+            child: Text(
+              'Create Wallet',
+              style: GoogleFonts.inter(
+                color: AppTheme.darkGreen,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

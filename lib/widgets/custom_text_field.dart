@@ -29,7 +29,7 @@ class CustomTextField extends StatelessWidget {
       keyboardType: keyboardType,
       validator: validator,
       enabled: enabled,
-      style: TextStyle(color: AppTheme.darkGreen),
+      style: const TextStyle(color: AppTheme.darkGreen),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
@@ -59,7 +59,7 @@ class CustomTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.darkGreen, width: 1),
+          borderSide: const BorderSide(color: AppTheme.darkGreen, width: 1),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

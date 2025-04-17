@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
 import 'login_screen.dart';
-import 'dashboard_screen.dart';
+import 'main_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -78,7 +78,7 @@ class _SignupScreenState extends State<SignupScreen> {
         
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       } catch (e) {
         if (!mounted) return;
@@ -129,7 +129,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 32,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFFB1EC6E),
+                    color: const Color(0xFFB1EC6E),
                     height: 1.2,
                   ),
                 ),
@@ -213,7 +213,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFFB1EC6E),
+                              color: const Color(0xFFB1EC6E),
                             ),
                           ),
                   ),

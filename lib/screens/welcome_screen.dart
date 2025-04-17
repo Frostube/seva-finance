@@ -64,7 +64,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     
                     // Main headline text
                     Text.rich(
-                      TextSpan(
+                      const TextSpan(
                         children: [
                           TextSpan(text: 'Track Your\n'),
                           TextSpan(
