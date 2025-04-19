@@ -10,6 +10,8 @@ import 'package:hive/hive.dart';
 import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
 import '../services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class RecentExpensesScreen extends StatefulWidget {
   final ExpenseService expenseService;
@@ -39,6 +41,8 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
       Hive.box<Expense>('expenses'),
       Provider.of<WalletService>(context, listen: false),
       Provider.of<NotificationService>(context, listen: false),
+      Provider.of<FirebaseFirestore>(context, listen: false),
+      Provider.of<FirebaseStorage>(context, listen: false),
     );
     _loadExpenses();
   }

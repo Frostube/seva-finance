@@ -1,0 +1,41 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "seva-finance-app",
+          "appId": "1:741018143182:android:5e9ba75fce8a0489e4439f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "seva-finance-app",
+          "configurations": {
+            "android": "1:741018143182:android:5e9ba75fce8a0489e4439f",
+            "ios": "1:741018143182:ios:77935fb964d1d906e4439f",
+            "macos": "1:741018143182:ios:77935fb964d1d906e4439f"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

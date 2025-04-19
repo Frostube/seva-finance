@@ -1,90 +1,127 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/notification.dart';
 
-class NotificationService extends ChangeNotifier {
-  final Box<bool> _notificationBox;
-  final Box<AppNotification> _notificationsBox;
-  bool _hasUnreadNotifications = false;
+class NotificationService with ChangeNotifier {
+  final Box<AppNotification> _localBox;
+  final FirebaseFirestore _firestore;
+  final FirebaseMessaging _messaging;
   List<AppNotification> _notifications = [];
+  bool _isLoading = false;
 
-  NotificationService(this._notificationBox, this._notificationsBox) {
-    _loadUnreadStatus();
+  NotificationService(this._localBox, this._firestore, this._messaging) {
     _loadNotifications();
+    _setupFirebaseMessaging();
   }
 
-  bool get hasUnreadNotifications => _hasUnreadNotifications;
-  List<AppNotification> get notifications => List.unmodifiable(_notifications);
+  List<AppNotification> get notifications => _notifications;
+  bool get isLoading => _isLoading;
+  bool get hasUnreadNotifications => _notifications.any((n) => !n.isRead);
 
-  void _loadUnreadStatus() {
-    _hasUnreadNotifications = _notificationBox.get('hasUnread', defaultValue: false) ?? false;
-  }
+  Future<void> _setupFirebaseMessaging() async {
+    try {
+      // Request permission for notifications
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // Get FCM token only if permission is granted
+        final token = await _messaging.getToken();
+        if (token != null) {
+          await _firestore.collection('users').doc('current').update({
+            'fcmTokens': FieldValue.arrayUnion([token]),
+          });
+        }
 
-  void _loadNotifications() {
-    _notifications = _notificationsBox.values.toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-  }
+        // Handle incoming messages when app is in foreground
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          _handleNotification(message);
+        });
 
-  Future<void> addNotification(AppNotification notification) async {
-    await _notificationsBox.put(notification.id, notification);
-    _notifications.insert(0, notification);
-    await markAsUnread();
-    notifyListeners();
-  }
-
-  Future<void> markAsRead() async {
-    await _notificationBox.put('hasUnread', false);
-    _hasUnreadNotifications = false;
-    notifyListeners();
-  }
-
-  Future<void> markAsUnread() async {
-    await _notificationBox.put('hasUnread', true);
-    _hasUnreadNotifications = true;
-    notifyListeners();
-  }
-
-  Future<void> markNotificationAsRead(String notificationId) async {
-    final notification = _notificationsBox.get(notificationId);
-    if (notification != null) {
-      notification.isRead = true;
-      await notification.save();
-      _loadNotifications();
-      notifyListeners();
+        // Handle notification tap when app is in background
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          _handleNotification(message);
+        });
+      }
+    } catch (e) {
+      // Log error but don't throw - notifications are not critical for app function
+      debugPrint('Error setting up Firebase Messaging: $e');
     }
   }
 
-  Future<void> deleteNotification(String notificationId) async {
-    await _notificationsBox.delete(notificationId);
-    _notifications.removeWhere((n) => n.id == notificationId);
+  void _handleNotification(RemoteMessage message) {
+    final notification = AppNotification(
+      id: message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      type: _getNotificationType(message.data['type'] as String?),
+      title: message.notification?.title ?? 'New Notification',
+      message: message.notification?.body ?? '',
+      relatedId: message.data['relatedId'] as String?,
+    );
+
+    _notifications.insert(0, notification);
+    _localBox.put(notification.id, notification);
     notifyListeners();
   }
 
-  // Helper methods for different notification types
-  Future<void> addAlertNotification({
-    required String alertId,
-    required String title,
-    required String message,
-  }) async {
-    final notification = AppNotification.fromAlert(
-      alertId: alertId,
-      title: title,
-      message: message,
-    );
-    await addNotification(notification);
+  NotificationType _getNotificationType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'alert':
+        return NotificationType.alert;
+      case 'goal':
+        return NotificationType.goal;
+      default:
+        return NotificationType.action;
+    }
   }
 
-  Future<void> addGoalNotification({
-    required String goalId,
-    required String title,
-    required String message,
-  }) async {
-    final notification = AppNotification.fromGoal(
-      goalId: goalId,
-      title: title,
-      message: message,
-    );
-    await addNotification(notification);
+  Future<void> _loadNotifications() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Load from local storage first
+      _notifications = _localBox.values.toList();
+
+      // Then sync with Firestore
+      final snapshot = await _firestore.collection('notifications').get();
+      final remoteNotifications = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return AppNotification(
+          id: doc.id,
+          type: _getNotificationType(data['type'] as String?),
+          title: data['title'] as String,
+          message: data['message'] as String,
+          relatedId: data['relatedId'] as String?,
+          isRead: data['isRead'] as bool? ?? false,
+        );
+      }).toList();
+
+      // Merge local and remote notifications
+      for (final remoteNotification in remoteNotifications) {
+        final localIndex = _notifications.indexWhere((n) => n.id == remoteNotification.id);
+        if (localIndex >= 0) {
+          _notifications[localIndex] = remoteNotification;
+        } else {
+          _notifications.add(remoteNotification);
+        }
+      }
+
+      // Save merged notifications to local storage
+      await _localBox.clear();
+      for (final notification in _notifications) {
+        await _localBox.put(notification.id, notification);
+      }
+    } catch (e) {
+      debugPrint('Error loading notifications: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> addActionNotification({
@@ -92,11 +129,117 @@ class NotificationService extends ChangeNotifier {
     required String message,
     String? relatedId,
   }) async {
-    final notification = AppNotification.fromAction(
-      title: title,
-      message: message,
-      relatedId: relatedId,
-    );
-    await addNotification(notification);
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final notification = AppNotification.fromAction(
+        title: title,
+        message: message,
+        relatedId: relatedId,
+      );
+
+      // Add to Firestore
+      await _firestore.collection('notifications').doc(notification.id).set({
+        'type': 'action',
+        'title': notification.title,
+        'message': notification.message,
+        'relatedId': notification.relatedId,
+        'isRead': notification.isRead,
+      });
+
+      // Save to local storage
+      await _localBox.put(notification.id, notification);
+      _notifications.insert(0, notification);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> addAlertNotification({
+    required String alertId,
+    required String title,
+    required String message,
+  }) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final notification = AppNotification.fromAlert(
+        alertId: alertId,
+        title: title,
+        message: message,
+      );
+
+      // Add to Firestore
+      await _firestore.collection('notifications').doc(notification.id).set({
+        'type': 'alert',
+        'title': notification.title,
+        'message': notification.message,
+        'relatedId': notification.relatedId,
+        'isRead': notification.isRead,
+      });
+
+      // Save to local storage
+      await _localBox.put(notification.id, notification);
+      _notifications.insert(0, notification);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Update in Firestore
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+      });
+
+      // Update in local storage
+      final notification = _notifications.firstWhere((n) => n.id == notificationId);
+      notification.isRead = true;
+      await _localBox.put(notificationId, notification);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Delete from Firestore
+      await _firestore.collection('notifications').doc(notificationId).delete();
+
+      // Delete from local storage
+      await _localBox.delete(notificationId);
+      _notifications.removeWhere((n) => n.id == notificationId);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 } 

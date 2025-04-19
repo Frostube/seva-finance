@@ -17,9 +17,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    // Mark all notifications as read when opening the screen
+    // Mark all unread notifications as read when opening the screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<NotificationService>(context, listen: false).markAsRead();
+      final notificationService = Provider.of<NotificationService>(context, listen: false);
+      for (final notification in notificationService.notifications) {
+        if (!notification.isRead) {
+          notificationService.markAsRead(notification.id);
+        }
+      }
     });
   }
 

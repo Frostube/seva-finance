@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
+import 'dart:async';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -71,21 +75,57 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = true);
 
       try {
-        // TODO: Implement actual signup logic here
-        await Future.delayed(const Duration(seconds: 2)); // Simulated delay
+        final authService = Provider.of<AuthService>(context, listen: false);
+        print('Starting signup process...'); // Debug log
+        
+        await authService.signUp(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          name: _nameController.text.trim(),
+        );
+        
+        print('Signup successful!'); // Debug log
         
         if (!mounted) return;
         
+        // Even if Firestore profile creation fails, we can still proceed to the main screen
+        // The profile will be created when the connection is better
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       } catch (e) {
+        print('Signup error: $e'); // Debug log
+        
         if (!mounted) return;
+        
+        String errorMessage = 'An error occurred';
+        if (e is FirebaseAuthException) {
+          print('Firebase Auth Error Code: ${e.code}'); // Debug log
+          switch (e.code) {
+            case 'email-already-in-use':
+              errorMessage = 'An account already exists with this email';
+              break;
+            case 'invalid-email':
+              errorMessage = 'Invalid email address';
+              break;
+            case 'weak-password':
+              errorMessage = 'Password is too weak';
+              break;
+            case 'operation-not-allowed':
+              errorMessage = 'Email/password accounts are not enabled';
+              break;
+            default:
+              errorMessage = e.message ?? 'An error occurred during signup';
+              break;
+          }
+        } else if (e is TimeoutException) {
+          errorMessage = 'Connection timeout. Please try again.';
+        }
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
           ),
         );

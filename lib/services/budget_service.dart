@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
+import 'package:flutter/foundation.dart';
 
-class BudgetService {
+class BudgetService with ChangeNotifier {
   static const String _budgetKey = 'monthly_budget';
   static const double _defaultBudget = 0.0;
   final Box<double> _budgetBox;
@@ -13,5 +14,6 @@ class BudgetService {
 
   Future<void> setMonthlyBudget(double amount) async {
     await _budgetBox.put(_budgetKey, amount);
+    notifyListeners();
   }
 } 

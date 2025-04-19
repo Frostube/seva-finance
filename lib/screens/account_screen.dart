@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import 'personal_details_screen.dart';
 import 'change_password_screen.dart';
+import 'welcome_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -15,6 +21,8 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
   bool _isTwoFactorEnabled = false;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -28,6 +36,29 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
       curve: Curves.easeInOut,
     );
     _controller.forward();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          _userData = doc.data();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -59,6 +90,8 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -131,7 +164,7 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                               },
                               transitionDuration: const Duration(milliseconds: 300),
                             ),
-                          );
+                          ).then((_) => _loadUserData()); // Reload data when returning from PersonalDetailsScreen
                         },
                         child: Row(
                           children: [
@@ -150,35 +183,37 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Jonathan',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
+                              child: _isLoading
+                                ? const Center(child: CircularProgressIndicator())
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _userData?['name'] ?? 'No name set',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        user?.email ?? 'No email set',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _userData?['phone'] ?? 'No phone set',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'jonathan@example.com',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '+1 555 555 5555',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                             Icon(
                               CupertinoIcons.chevron_right,
@@ -352,27 +387,111 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showLogOutConfirmation(BuildContext context) async {
+  Future<void> _showDeleteConfirmation(BuildContext context) async {
+    print('DEBUG: Showing delete confirmation dialog');
     return showDialog(
       context: context,
       builder: (BuildContext context) {
-        return CupertinoAlertDialog(
-          title: const Text('Log Out'),
-          content: const Text(
-            'Are you sure you want to log out?',
+        return AlertDialog(
+          title: Text(
+            'Delete Account',
+            style: GoogleFonts.inter(
+              color: AppTheme.darkGreen,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
+            style: GoogleFonts.inter(
+              color: AppTheme.darkGreen.withOpacity(0.8),
+            ),
           ),
           actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
+            TextButton(
               onPressed: () {
-                // Pop all the way back to the first screen (simulating going back to login)
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                print('DEBUG: User cancelled account deletion');
+                Navigator.of(context).pop();
               },
-              child: const Text('Log Out'),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: AppTheme.darkGreen,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                print('DEBUG: User confirmed account deletion');
+                // Close the dialog first
+                Navigator.of(context).pop();
+                
+                final authService = Provider.of<AuthService>(context, listen: false);
+                print('DEBUG: Starting account deletion process');
+                print('DEBUG: Current user: ${authService.user?.email}');
+                
+                try {
+                  // Delete the account first while we still have a valid context
+                  print('DEBUG: Calling authService.deleteAccount()');
+                  await authService.deleteAccount();
+                  print('DEBUG: Account deletion successful');
+                  
+                  // Show success message
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Account deleted successfully'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    
+                    // Navigate to welcome screen after showing the success message
+                    print('DEBUG: Navigating to welcome screen after successful deletion');
+                    await Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const WelcomeScreen(),
+                        settings: const RouteSettings(name: '/welcome'),
+                      ),
+                      (route) => false,
+                    );
+                  }
+                  
+                } catch (e) {
+                  print('DEBUG: Error during account deletion: $e');
+                  if (e is FirebaseAuthException) {
+                    print('DEBUG: Firebase Auth Error Code: ${e.code}');
+                    print('DEBUG: Firebase Auth Error Message: ${e.message}');
+                  }
+                  
+                  if (context.mounted) {
+                    String errorMessage;
+                    if (e is FirebaseAuthException) {
+                      if (e.code == 'requires-recent-login') {
+                        errorMessage = 'Please log out and log in again before deleting your account';
+                      } else {
+                        errorMessage = e.message ?? 'Failed to delete account';
+                      }
+                    } else {
+                      errorMessage = 'Failed to delete account. Please try again.';
+                    }
+                    
+                    print('DEBUG: Showing error message: $errorMessage');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(errorMessage),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(
+                'Delete',
+                style: GoogleFonts.inter(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
@@ -380,27 +499,68 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showDeleteConfirmation(BuildContext context) async {
+  Future<void> _showLogOutConfirmation(BuildContext context) async {
     return showDialog(
       context: context,
       builder: (BuildContext context) {
-        return CupertinoAlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text(
-            'Are you sure you want to delete your account? This action cannot be undone.',
+        return AlertDialog(
+          title: Text(
+            'Log Out',
+            style: GoogleFonts.inter(
+              color: AppTheme.darkGreen,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: GoogleFonts.inter(
+              color: AppTheme.darkGreen.withOpacity(0.8),
+            ),
           ),
           actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: AppTheme.darkGreen,
+                ),
+              ),
             ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
-              onPressed: () {
-                // Handle delete account
-                Navigator.pop(context);
+            TextButton(
+              onPressed: () async {
+                try {
+                  print('DEBUG: Starting sign out process');
+                  final authService = Provider.of<AuthService>(context, listen: false);
+                  await authService.signOut();
+                  print('DEBUG: Sign out successful');
+                  
+                  if (!context.mounted) return;
+                  
+                  // Navigate to welcome screen and remove all previous routes
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                    (route) => false,
+                  );
+                } catch (e) {
+                  print('DEBUG: Error during sign out: $e');
+                  if (!context.mounted) return;
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to sign out. Please try again.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
-              child: const Text('Delete'),
+              child: Text(
+                'Log Out',
+                style: GoogleFonts.inter(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );

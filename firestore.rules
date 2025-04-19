@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow reading users collection for authentication (username lookup)
+    match /users/{userId} {
+      allow read: if true;  // Needed for username lookup during login
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Wallets collection rules
+    match /wallets/{walletId} {
+      allow read, write, delete: if request.auth != null && (
+        resource == null || 
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Expenses collection rules
+    match /expenses/{expenseId} {
+      allow read, write, delete: if request.auth != null && (
+        resource == null || 
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Notifications collection rules
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && (
+        resource == null ||
+        resource.data.userId == request.auth.uid
+      );
+      allow write, delete: if request.auth != null && (
+        resource == null ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Default rule for other collections
+    match /{collection}/{document} {
+      allow read, write, delete: if request.auth != null && (
+        resource == null || 
+        resource.data.userId == request.auth.uid
+      );
+    }
+  }
+}

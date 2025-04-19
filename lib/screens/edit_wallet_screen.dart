@@ -185,13 +185,18 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
       return;
     }
 
+    debugPrint('EditWalletScreen: Starting wallet save process...');
+    debugPrint('EditWalletScreen: Original wallet - ID: ${widget.wallet.id}, Balance: ${widget.wallet.balance}');
+
     final budget = double.tryParse(
       _budgetController.text.replaceAll(RegExp(r'[^0-9]'), '')
     ) ?? 0.0;
 
     final balance = double.tryParse(
-      _balanceController.text.replaceAll(RegExp(r'[^0-9]'), '')
+      _balanceController.text.replaceAll(RegExp(r'[^\d.]'), '')
     ) ?? 0.0;
+
+    debugPrint('EditWalletScreen: Parsed values - Budget: $budget, Balance: $balance');
 
     final updatedWallet = Wallet(
       id: widget.wallet.id,
@@ -205,13 +210,28 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
       createdAt: widget.wallet.createdAt,
     );
 
-    await _walletService.updateWallet(updatedWallet);
-    if (_isPrimary) {
-      await _walletService.setPrimaryWallet(updatedWallet.id);
-    }
-    widget.onWalletUpdated();
-    if (mounted) {
-      Navigator.pop(context);
+    debugPrint('EditWalletScreen: Created updated wallet object - ID: ${updatedWallet.id}, Balance: ${updatedWallet.balance}');
+
+    try {
+      await _walletService.updateWallet(updatedWallet);
+      debugPrint('EditWalletScreen: Wallet updated successfully');
+      
+      if (_isPrimary) {
+        debugPrint('EditWalletScreen: Setting as primary wallet');
+        await _walletService.setPrimaryWallet(updatedWallet.id);
+      }
+      
+      widget.onWalletUpdated();
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint('EditWalletScreen: Error saving wallet: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving wallet: $e')),
+        );
+      }
     }
   }
 
@@ -578,7 +598,7 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
               });
               _togglePrimary(value);
             },
-            activeColor: const Color(0xFF1B4332),
+            activeTrackColor: const Color(0xFF1B4332),
           ),
         ],
       ),
@@ -634,6 +654,7 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
         ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -688,34 +709,40 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
             ),
             if (!widget.wallet.isPrimary) ...[
               const SizedBox(height: 32),
-              TextButton(
-                onPressed: _isDeleting ? null : _showDeleteConfirmation,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.red[50],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                child: TextButton(
+                  onPressed: _showDeleteConfirmation,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.red[50],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ),
-                child: _isDeleting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                        ),
-                      )
-                    : Text(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.trash,
+                        color: Colors.red[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
                         'Delete Wallet',
                         style: GoogleFonts.inter(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
                           fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[700],
                         ),
                       ),
+                    ],
+                  ),
+                ),
               ),
             ],
+            const SizedBox(height: 32),
           ],
         ),
       ),

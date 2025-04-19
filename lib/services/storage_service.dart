@@ -1,7 +1,8 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 
-class StorageService {
+class StorageService extends ChangeNotifier {
   static const String expensesBox = 'expenses';
   static const String categoriesBox = 'categories';
 
@@ -23,11 +24,13 @@ class StorageService {
   Future<void> saveExpense(Expense expense) async {
     final box = Hive.box<Expense>(expensesBox);
     await box.put(expense.id, expense);
+    notifyListeners();
   }
 
   Future<void> deleteExpense(String id) async {
     final box = Hive.box<Expense>(expensesBox);
     await box.delete(id);
+    notifyListeners();
   }
 
   Future<List<Expense>> getAllExpenses() async {
@@ -37,6 +40,7 @@ class StorageService {
 
   Future<void> updateExpense(Expense expense) async {
     await saveExpense(expense); // In Hive, put() handles both insert and update
+    notifyListeners();
   }
 
   // Categories operations
@@ -44,6 +48,7 @@ class StorageService {
     final box = Hive.box<String>(categoriesBox);
     if (!await hasCategory(category)) {
       await box.add(category);
+      notifyListeners();
     }
   }
 

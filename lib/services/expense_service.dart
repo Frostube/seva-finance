@@ -3,15 +3,77 @@ import 'storage_service.dart';
 import 'wallet_service.dart';
 import 'package:hive/hive.dart';
 import 'notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ExpenseService {
+class ExpenseService with ChangeNotifier {
   final StorageService _storageService;
   final Box<double> _budgetBox;
   final Box<Expense> _expenseBox;
   final WalletService _walletService;
   final NotificationService _notificationService;
+  final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  List<Expense> _expenses = [];
+  bool _isLoading = false;
 
-  ExpenseService(this._storageService, this._budgetBox, this._expenseBox, this._walletService, this._notificationService);
+  ExpenseService(this._storageService, this._budgetBox, this._expenseBox, this._walletService, this._notificationService, this._firestore, this._storage) {
+    _loadExpenses();
+  }
+
+  List<Expense> get expenses => _expenses;
+  bool get isLoading => _isLoading;
+
+  String? get _userId => _auth.currentUser?.uid;
+
+  Future<void> _loadExpenses() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Load from local storage first
+      _expenses = _expenseBox.values.toList();
+
+      // Then sync with Firestore
+      final snapshot = await _firestore.collection('expenses')
+          .where('userId', isEqualTo: _userId)
+          .get();
+      final remoteExpenses = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Expense(
+          id: doc.id,
+          amount: data['amount'] as double,
+          category: data['category'] as String,
+          date: DateTime.parse(data['date'] as String),
+          note: data['note'] as String?,
+        );
+      }).toList();
+
+      // Merge local and remote expenses
+      for (final remoteExpense in remoteExpenses) {
+        final localIndex = _expenses.indexWhere((e) => e.id == remoteExpense.id);
+        if (localIndex >= 0) {
+          _expenses[localIndex] = remoteExpense;
+        } else {
+          _expenses.add(remoteExpense);
+        }
+      }
+
+      // Save merged expenses to local storage
+      await _expenseBox.clear();
+      for (final expense in _expenses) {
+        await _expenseBox.put(expense.id, expense);
+      }
+    } catch (e) {
+      debugPrint('Error loading expenses: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
 
   // Get all expenses
   Future<List<Expense>> getAllExpenses() async {
@@ -49,32 +111,107 @@ class ExpenseService {
 
   // Add a new expense
   Future<void> addExpense(Expense expense) async {
-    await _expenseBox.put(expense.id, expense);
-    _notificationService.addActionNotification(
-      title: 'New Expense Added',
-      message: '${expense.amount} spent on ${expense.category}',
-      relatedId: expense.id,
-    );
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Add to Firestore
+      final docRef = await _firestore.collection('expenses').add({
+        'amount': expense.amount,
+        'category': expense.category,
+        'date': expense.date.toIso8601String(),
+        'note': expense.note,
+        'userId': _userId,
+      });
+
+      // Update expense with Firestore ID
+      final updatedExpense = Expense(
+        id: docRef.id,
+        amount: expense.amount,
+        category: expense.category,
+        date: expense.date,
+        note: expense.note,
+      );
+
+      // Save to local storage
+      await _expenseBox.put(updatedExpense.id, updatedExpense);
+      _expenses.add(updatedExpense);
+
+      _notificationService.addActionNotification(
+        title: 'New Expense Added',
+        message: '${expense.amount} spent on ${expense.category}',
+        relatedId: expense.id,
+      );
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteExpense(String expenseId) async {
-    final expense = _expenseBox.get(expenseId);
-    if (expense != null) {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Delete from Firestore
+      await _firestore.collection('expenses').doc(expenseId).delete();
+
+      // Delete from local storage
       await _expenseBox.delete(expenseId);
+      _expenses.removeWhere((e) => e.id == expenseId);
+
       _notificationService.addActionNotification(
         title: 'Expense Deleted',
-        message: '${expense.amount} removed from ${expense.category}',
+        message: '${_expenseBox.get(expenseId)?.amount} removed from ${_expenseBox.get(expenseId)?.category}',
       );
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> updateExpense(Expense expense) async {
-    await _expenseBox.put(expense.id, expense);
-    _notificationService.addActionNotification(
-      title: 'Expense Updated',
-      message: '${expense.amount} updated for ${expense.category}',
-      relatedId: expense.id,
-    );
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Update in Firestore
+      await _firestore.collection('expenses').doc(expense.id).update({
+        'amount': expense.amount,
+        'category': expense.category,
+        'date': expense.date.toIso8601String(),
+        'note': expense.note,
+        'userId': _userId,
+      });
+
+      // Update in local storage
+      await _expenseBox.put(expense.id, expense);
+      final index = _expenses.indexWhere((e) => e.id == expense.id);
+      if (index >= 0) {
+        _expenses[index] = expense;
+      }
+
+      _notificationService.addActionNotification(
+        title: 'Expense Updated',
+        message: '${expense.amount} updated for ${expense.category}',
+        relatedId: expense.id,
+      );
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // Get expenses for previous month (for trend calculation)
@@ -159,7 +296,26 @@ class ExpenseService {
     return groupedExpenses;
   }
 
-  // Add alert notification when budget is exceeded
+  List<Expense> getExpensesInCategory(String category) {
+    return _expenses.where((e) => e.category == category).toList();
+  }
+
+  double getTotalExpensesByCategory(String category) {
+    return _expenses
+        .where((e) => e.category == category)
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  List<Expense> getExpensesByDateRange(DateTime start, DateTime end) {
+    return _expenses.where((e) => e.date.isAfter(start) && e.date.isBefore(end)).toList();
+  }
+
+  double getTotalExpensesByDateRange(DateTime start, DateTime end) {
+    return _expenses
+        .where((e) => e.date.isAfter(start) && e.date.isBefore(end))
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
   Future<void> checkBudgetExceeded(String walletId, double amount) async {
     final wallet = _budgetBox.get(walletId);
     if (wallet != null && wallet > 0) {

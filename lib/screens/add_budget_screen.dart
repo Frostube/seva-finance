@@ -4,21 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/wallet_service.dart';
 import 'package:provider/provider.dart';
 
-class SetBudgetScreen extends StatefulWidget {
+class AddBudgetScreen extends StatefulWidget {
   final double currentBudget;
-  final Function onBudgetUpdated;
+  final Function() onBudgetUpdated;
 
-  const SetBudgetScreen({
+  const AddBudgetScreen({
     super.key,
     required this.currentBudget,
     required this.onBudgetUpdated,
   });
 
   @override
-  State<SetBudgetScreen> createState() => _SetBudgetScreenState();
+  State<AddBudgetScreen> createState() => _AddBudgetScreenState();
 }
 
-class _SetBudgetScreenState extends State<SetBudgetScreen> {
+class _AddBudgetScreenState extends State<AddBudgetScreen> {
   late TextEditingController _budgetController;
   late WalletService _walletService;
 

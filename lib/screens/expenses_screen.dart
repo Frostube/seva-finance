@@ -10,15 +10,17 @@ import '../models/expense.dart';
 import '../models/wallet.dart'; // For Wallet model
 import 'transaction_detail_screen.dart';
 import '../services/budget_service.dart';
-import 'set_budget_screen.dart';
+import 'add_budget_screen.dart';
+import 'remove_budget_screen.dart';
 import 'recent_expenses_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import 'package:hive/hive.dart';
 import '../services/wallet_service.dart';
-import 'wallet_management_screen.dart';
 import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -80,6 +82,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       Hive.box<Expense>('expenses'),
       Provider.of<WalletService>(context, listen: false),
       Provider.of<NotificationService>(context, listen: false),
+      Provider.of<FirebaseFirestore>(context, listen: false),
+      Provider.of<FirebaseStorage>(context, listen: false),
     );
     _walletService = Provider.of<WalletService>(context, listen: false);
     _budgetService = BudgetService(Hive.box<double>('budget'));
@@ -131,7 +135,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             ElevatedButton(
               onPressed: () {
                 final newWallet = Wallet(
-                  id: DateTime.now().toString(),
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
                   name: 'New Wallet',
                   balance: 0.0,
                   isPrimary: true, // First wallet is primary
@@ -580,91 +584,88 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     required double trend,
     required Expense expense,
   }) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (context) => TransactionDetailScreen(
-              expense: expense,
-              expenseService: _expenseService,
-              onExpenseUpdated: _refreshScreen,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey[200]!,
-            width: 1,
-          ),
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 16,
-              ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  category,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                category,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
+              ),
+              if (expense.note != null && expense.note!.isNotEmpty) ...[
                 const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      _formatCurrency(amount),
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    if (trend != 0) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        trend > 0 
-                            ? CupertinoIcons.arrow_up
-                            : CupertinoIcons.arrow_down,
-                        size: 10,
-                        color: trend > 0 ? Colors.red : Colors.green,
-                      ),
-                      Text(
-                        '${(trend * 100).abs().toStringAsFixed(1)}%',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          color: trend > 0 ? Colors.red : Colors.green,
-                        ),
-                      ),
-                    ],
-                  ],
+                Text(
+                  expense.note!,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
-          ],
-        ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Text(
+                    _formatCurrency(amount),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (trend != 0) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      trend > 0 
+                          ? CupertinoIcons.arrow_up
+                          : CupertinoIcons.arrow_down,
+                      size: 10,
+                      color: trend > 0 ? Colors.red : Colors.green,
+                    ),
+                    Text(
+                      '${(trend * 100).abs().toStringAsFixed(1)}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: trend > 0 ? Colors.red : Colors.green,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -741,7 +742,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                   ),
                   title: Text(
-                    'Set Budget',
+                    'Add Budget',
                     style: GoogleFonts.inter(
                       fontSize: 17,
                       fontWeight: FontWeight.w500,
@@ -749,7 +750,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    _showSetBudgetScreen();
+                    _showAddBudgetScreen();
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F1EC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.minus,
+                      color: Color(0xFF1B4332),
+                    ),
+                  ),
+                  title: Text(
+                    'Remove Budget',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showRemoveBudgetScreen();
                   },
                 ),
                 const SizedBox(height: 8),
@@ -761,11 +786,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  void _showSetBudgetScreen() {
+  void _showAddBudgetScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SetBudgetScreen(
+        builder: (context) => AddBudgetScreen(
+          currentBudget: _monthlyBudget ?? 0.0,
+          onBudgetUpdated: _loadBudget,
+        ),
+      ),
+    );
+  }
+
+  void _showRemoveBudgetScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RemoveBudgetScreen(
           currentBudget: _monthlyBudget ?? 0.0,
           onBudgetUpdated: _loadBudget,
         ),
@@ -776,7 +813,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Widget _buildBudgetText() {
     final formatter = NumberFormat.currency(symbol: '\$');
     return GestureDetector(
-      onTap: _showSetBudgetScreen,
+      onTap: _showAddBudgetScreen,
       child: Row(
         children: [
           Text(
@@ -1257,7 +1294,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             ),
                             const SizedBox(height: 12),
                             GestureDetector(
-                              onTap: _showSetBudgetScreen,
+                              onTap: _showAddBudgetScreen,
                               child: Row(
                                 children: [
                                   Text(

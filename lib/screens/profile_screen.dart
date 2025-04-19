@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:seva_finance/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/app_theme.dart';
 import 'account_screen.dart';
-import 'linked_cards_screen.dart';
 import 'preferences_screen.dart';
+import 'linked_cards_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +20,9 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  String _userName = '';
+  String _userEmail = '';
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -28,6 +36,31 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       curve: Curves.easeInOut,
     );
     _controller.forward();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          _userName = data['name'] ?? '';
+          _userEmail = user.email ?? '';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -145,32 +178,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     child: Column(
                       children: [
                         // Profile Image
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.grey[200],
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.network(
-                              'https://i.pravatar.cc/300',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundImage: const AssetImage('assets/images/ChatGPT Image 19 abr 2025, 13_33_51.png'),
+                          backgroundColor: Colors.grey[200],
                         ),
                         const SizedBox(height: 16),
                         
                         // Name
                         Text(
-                          'Olivia Brown',
+                          _isLoading ? 'Loading...' : _userName,
                           style: GoogleFonts.inter(
                             fontSize: 24,
                             fontWeight: FontWeight.w600,
@@ -180,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         
                         // Email
                         Text(
-                          'olivia.brown@email.com',
+                          _isLoading ? 'Loading...' : _userEmail,
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             color: Colors.grey[600],
@@ -205,10 +222,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       _buildSettingsItem(
                         icon: CupertinoIcons.creditcard_fill,
                         title: 'Linked Cards',
-                        onTap: () => _navigateWithFade(context, const WalletManagementScreen()),
+                        onTap: () => _navigateWithFade(context, const LinkedCardsScreen()),
                       ),
                       _buildSettingsItem(
-                        icon: CupertinoIcons.settings_solid,
+                        icon: CupertinoIcons.slider_horizontal_3,
                         title: 'Preferences',
                         onTap: () => _navigateWithFade(context, const PreferencesScreen()),
                       ),

@@ -5,7 +5,6 @@ import '../theme/app_theme.dart';
 import '../theme/colors.dart';
 import 'linked_cards_screen.dart';
 import 'notifications_screen.dart';
-import 'recent_expenses_screen.dart';
 import '../services/wallet_service.dart';
 import '../services/savings_service.dart';
 import '../models/wallet.dart';
@@ -24,6 +23,9 @@ import '../services/storage_service.dart';
 import 'transaction_detail_screen.dart';
 import 'package:seva_finance/widgets/expense_tile.dart';
 import '../services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../services/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -48,6 +50,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Hive.box<Expense>('expenses'),
       _walletService,
       Provider.of<NotificationService>(context, listen: false),
+      Provider.of<FirebaseFirestore>(context, listen: false),
+      Provider.of<FirebaseStorage>(context, listen: false),
     );
     _loadWallets();
     
@@ -334,6 +338,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _getFirstName(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'User';
+    return fullName.split(' ')[0];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -355,13 +364,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Hi, Jonathan',
-                                style: GoogleFonts.inter(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.darkGreen,
-                                ),
+                              Consumer<AuthService>(
+                                builder: (context, authService, child) {
+                                  return FutureBuilder<DocumentSnapshot>(
+                                    future: FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(authService.user?.uid)
+                                        .get(),
+                                    builder: (context, snapshot) {
+                                      String firstName = 'User';
+                                      if (snapshot.hasData && snapshot.data != null) {
+                                        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                                        if (userData != null && userData['name'] != null) {
+                                          firstName = _getFirstName(userData['name']);
+                                        }
+                                      }
+                                      return Text(
+                                        'Hi, $firstName',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.darkGreen,
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -379,7 +407,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 icon: const Icon(Icons.notifications_outlined),
                                 color: AppTheme.darkGreen,
                                 onPressed: () {
-                                  Provider.of<NotificationService>(context, listen: false).markAsRead();
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -713,7 +740,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const WalletManagementScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => const LinkedCardsScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

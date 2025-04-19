@@ -7,14 +7,14 @@ import '../models/wallet.dart';
 import '../screens/edit_wallet_screen.dart';
 import 'package:intl/intl.dart';
 
-class WalletManagementScreen extends StatefulWidget {
-  const WalletManagementScreen({super.key});
+class LinkedCardsScreen extends StatefulWidget {
+  const LinkedCardsScreen({super.key});
 
   @override
-  State<WalletManagementScreen> createState() => _WalletManagementScreenState();
+  State<LinkedCardsScreen> createState() => _LinkedCardsScreenState();
 }
 
-class _WalletManagementScreenState extends State<WalletManagementScreen> {
+class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
   late WalletService _walletService;
   List<Wallet> _wallets = [];
 
@@ -40,6 +40,20 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
+        title: Text(
+          wallet.name,
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        message: Text(
+          'Wallet Actions',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: Colors.grey[600],
+          ),
+        ),
         actions: [
           if (!wallet.isPrimary)
             CupertinoActionSheetAction(
@@ -47,32 +61,135 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
                 _setPrimaryWallet(wallet.id);
                 Navigator.pop(context);
               },
-              child: const Text('Set as Primary'),
+              child: Text(
+                'Set as Primary',
+                style: GoogleFonts.inter(),
+              ),
             ),
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context);
               _showEditWalletModal(context, wallet);
             },
-            child: const Text('Edit'),
-          ),
-          if (!wallet.isPrimary)
-            CupertinoActionSheetAction(
-              isDestructiveAction: true,
-              onPressed: () async {
-                await _walletService.deleteWallet(wallet.id);
-                _loadWallets();
-                Navigator.pop(context);
-              },
-              child: const Text('Delete'),
+            child: Text(
+              'Edit',
+              style: GoogleFonts.inter(),
             ),
+          ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.inter(),
+          ),
         ),
       ),
-    );
+    ).then((_) {
+      // Show delete confirmation in a separate dialog
+      if (!wallet.isPrimary) {
+        showDialog(
+          context: context,
+          builder: (context) => Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      CupertinoIcons.trash_fill,
+                      color: Colors.red[700],
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Delete ${wallet.name}?',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'This action cannot be undone. All data associated with this wallet will be permanently deleted.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () async {
+                              await _walletService.deleteWallet(wallet.id);
+                              _loadWallets();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: Colors.red[700],
+                            ),
+                            child: Text(
+                              'Delete',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    });
   }
 
   void _showAddWalletModal(BuildContext parentContext) {
@@ -130,7 +247,7 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
                     onPressed: () async {
                       if (nameController.text.isNotEmpty) {
                         final newWallet = Wallet(
-                          id: DateTime.now().toString(),
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
                           name: nameController.text,
                           balance: 0.0,
                           isPrimary: _wallets.isEmpty,
@@ -228,7 +345,7 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
       },
       child: Container(
         margin: const EdgeInsets.all(12),
-        height: 180,
+        height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
           color: Color(wallet.colorValue),
