@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
-import 'add_expense_screen.dart';
 import 'package:uuid/uuid.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
@@ -530,53 +529,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
     if (confirmed == true) {
       await widget.expenseService.deleteExpense(_expense.id);
-      widget.onExpenseUpdated();
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    }
-  }
-
-  void _editExpense() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddExpenseScreen(
-          expenseService: widget.expenseService,
-          onExpenseAdded: widget.onExpenseUpdated,
-          initialExpense: _expense,
-        ),
-      ),
-    );
-    if (result == true) {
-      widget.onExpenseUpdated();
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    }
-  }
-
-  void _duplicateExpense() async {
-    final duplicatedExpense = Expense(
-      id: _uuid.v4(),
-      amount: _expense.amount,
-      category: _expense.category,
-      date: DateTime.now(),
-      note: _expense.note,
-    );
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddExpenseScreen(
-          expenseService: widget.expenseService,
-          onExpenseAdded: widget.onExpenseUpdated,
-          initialExpense: duplicatedExpense,
-        ),
-      ),
-    );
-
-    if (result == true) {
       widget.onExpenseUpdated();
       if (mounted) {
         Navigator.pop(context);

@@ -9,7 +9,6 @@ import '../services/expense_service.dart';
 import '../models/expense.dart';
 import '../models/wallet.dart'; // For Wallet model
 import 'transaction_detail_screen.dart';
-import '../services/budget_service.dart';
 import 'add_budget_screen.dart';
 import 'remove_budget_screen.dart';
 import 'recent_expenses_screen.dart';
@@ -41,11 +40,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   late ExpenseService _expenseService;
   late WalletService _walletService;
   double? _monthlyBudget;
-  final String _searchQuery = '';
-  double _cachedTotalSpent = 0.0;
-  Map<String, double> _cachedExpensesByCategory = {};
-  double _cachedBudgetUsage = 0.0;
-  late final BudgetService _budgetService;
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
 
   // Add selectedMonth state
@@ -65,13 +59,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     'Other': CupertinoIcons.square_grid_2x2,
   };
 
-  final Map<String, double> _lastMonthSpending = {
-    'Rent': 1485.00,
-    'Groceries': 140.00,
-    'Transport': 35.00,
-    'Shopping': 71.00,
-  };
-
   @override
   void initState() {
     super.initState();
@@ -86,7 +73,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       Provider.of<FirebaseStorage>(context, listen: false),
     );
     _walletService = Provider.of<WalletService>(context, listen: false);
-    _budgetService = BudgetService(Hive.box<double>('budget'));
     _loadBudget();
     
     // Listen for wallet changes
@@ -199,48 +185,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Future<void> _updateCachedValues() async {
     print('ExpensesScreen: Updating cached values for ${DateFormat('MMMM yyyy').format(_selectedMonth)}');
-    _cachedTotalSpent = await _expenseService.getTotalForMonth(_selectedMonth);
-    _cachedExpensesByCategory = await _expenseService.getExpensesByCategory(_selectedMonth);
-    final primaryWallet = _walletService.getPrimaryWallet();
-    if (primaryWallet != null && primaryWallet.budget != null && primaryWallet.budget! > 0) {
-      _cachedBudgetUsage = _cachedTotalSpent / primaryWallet.budget!;
-    } else {
-      _cachedBudgetUsage = 0.0;
-    }
     setState(() {});
-  }
-
-  Future<double> _totalSpent() async {
-    final expenses = await _expenseService.getExpenses();
-    return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
-  }
-
-  double get _remainingBudget => _monthlyBudget != null ? _monthlyBudget! - _cachedTotalSpent : 0.0;
-  double get _budgetUsagePercentage => _monthlyBudget != null && _monthlyBudget! > 0 ? _cachedBudgetUsage : 0.0;
-
-  Future<Map<String, double>> _currentExpenses() async {
-    final expenses = await _expenseService.getExpenses();
-    final categoryTotals = <String, double>{};
-    
-    for (final expense in expenses) {
-      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0.0) + expense.amount;
-    }
-    
-    return categoryTotals;
-  }
-
-  Future<double> _calculateTrend() async {
-    final currentMonthExpenses = await _expenseService.getExpenses();
-    final previousMonth = DateTime.now().subtract(Duration(days: DateTime.now().day - 1));
-    final previousMonthExpenses = await _expenseService.getExpensesForMonth(previousMonth);
-
-    final currentTotal = currentMonthExpenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
-    final previousTotal = previousMonthExpenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
-
-    if (previousTotal == 0) return 0;
-    
-    final trendPercentage = ((currentTotal - previousTotal) / previousTotal) * 100;
-    return trendPercentage.isFinite ? trendPercentage.clamp(-100.0, double.infinity) : 0.0;
   }
 
   Future<Map<String, List<Expense>>> _groupExpensesByTimeline() async {
@@ -274,21 +219,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
 
     return groupedExpenses;
-  }
-
-  Future<List<Expense>> _filterExpenses(String category) async {
-    final expenses = await _expenseService.getExpenses();
-    if (_searchQuery.isEmpty && (category == 'All')) {
-      return expenses;
-    }
-
-    return expenses.where((expense) =>
-      (category == 'All' || expense.category == category) &&
-      (_searchQuery.isEmpty || 
-        expense.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        (expense.note?.toLowerCase() ?? '').contains(_searchQuery.toLowerCase()) ||
-        expense.amount.toString().contains(_searchQuery))
-    ).toList();
   }
 
   void _showMonthPicker() {
@@ -395,185 +325,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       symbol: '\$',
       decimalDigits: amount.truncateToDouble() == amount ? 0 : 2,
     ).format(amount);
-  }
-
-  Widget _buildTopCategoryItem({
-    required IconData icon,
-    required String label,
-    required String amount,
-    required double trend,
-  }) {
-    return SizedBox(
-      width: 85, // Reduced from 100 to prevent overflow
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8), // Reduced from 10
-            decoration: BoxDecoration(
-              color: const Color(0xFFE9F1EC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF1B4332),
-              size: 18, // Reduced from 20
-            ),
-          ),
-          const SizedBox(height: 4), // Reduced from 6
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11, // Reduced from 12
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              amount,
-              style: GoogleFonts.inter(
-                fontSize: 12, // Reduced from 13
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (trend != 0) ...[
-            const SizedBox(height: 2),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  trend > 0 
-                      ? CupertinoIcons.arrow_up
-                      : CupertinoIcons.arrow_down,
-                  size: 10,
-                  color: trend > 0 ? Colors.red : Colors.green,
-                ),
-                Text(
-                  '${(trend * 100).abs().toStringAsFixed(1)}%',
-                  style: GoogleFonts.inter(
-                    fontSize: 9, // Reduced from 10
-                    color: trend > 0 ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpenseItem({
-    required IconData icon,
-    required String title,
-    required String date,
-    required double amount,
-    required Color iconBackgroundColor,
-    bool showTrend = false,
-    double trendPercentage = 0,
-    required Expense expense,
-  }) {
-    final formatter = NumberFormat.currency(symbol: '\$');
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (context) => TransactionDetailScreen(
-              expense: expense,
-              expenseService: _expenseService,
-              onExpenseUpdated: _refreshScreen,
-            ),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconBackgroundColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF1B4332),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    date,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatter.format(amount),
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                if (showTrend && trendPercentage != 0)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        trendPercentage > 0 
-                            ? CupertinoIcons.arrow_up
-                            : CupertinoIcons.arrow_down,
-                        size: 12,
-                        color: trendPercentage > 0 ? Colors.red : Colors.green,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${trendPercentage.abs().toStringAsFixed(1)}%',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: trendPercentage > 0 ? Colors.red : Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildCategoryChip({
@@ -806,31 +557,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           currentBudget: _monthlyBudget ?? 0.0,
           onBudgetUpdated: _loadBudget,
         ),
-      ),
-    );
-  }
-
-  Widget _buildBudgetText() {
-    final formatter = NumberFormat.currency(symbol: '\$');
-    return GestureDetector(
-      onTap: _showAddBudgetScreen,
-      child: Row(
-        children: [
-          Text(
-            'You have ${formatter.format(_remainingBudget)} left for ${DateFormat('MMMM').format(DateTime.now())}',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: const Color(0xFF40916C),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(
-            CupertinoIcons.pencil,
-            size: 12,
-            color: Color(0xFF40916C),
-          ),
-        ],
       ),
     );
   }
@@ -1158,11 +884,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 final totalSpent = totalSnapshot.data!;
                 final budget = primaryWallet.budget ?? 0.0;
                 final remainingBudget = budget - totalSpent;
-                final budgetUsagePercentage = budget > 0 
-                    ? (totalSpent / budget).clamp(0.0, 1.0)
-                    : 0.0;
 
-                print('ExpensesScreen: totalSpent: $totalSpent, budget: $budget, remainingBudget: $remainingBudget, budgetUsagePercentage: $budgetUsagePercentage');
+                print('ExpensesScreen: totalSpent: $totalSpent, budget: $budget, remainingBudget: $remainingBudget');
 
                 return SingleChildScrollView(
                   child: Column(

@@ -20,7 +20,6 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import '../services/storage_service.dart';
-import 'transaction_detail_screen.dart';
 import 'package:seva_finance/widgets/expense_tile.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -190,41 +189,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.9),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -564,126 +528,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildExpensePreviewItem(Expense expense) {
-    final formatter = NumberFormat.currency(symbol: '\$');
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (context) => TransactionDetailScreen(
-              expense: expense,
-              expenseService: _expenseService,
-              onExpenseUpdated: () => setState(() {}),
-            ),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9F1EC),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _getCategoryIcon(expense.category),
-                color: const Color(0xFF1B4332),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    expense.category,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (expense.note != null && expense.note!.isNotEmpty)
-                    Text(
-                      expense.note!,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatter.format(expense.amount),
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM d').format(expense.date),
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'rent':
-        return CupertinoIcons.house_fill;
-      case 'groceries':
-        return CupertinoIcons.cart_fill;
-      case 'transport':
-        return CupertinoIcons.car_fill;
-      case 'shopping':
-        return CupertinoIcons.bag_fill;
-      case 'entertainment':
-        return CupertinoIcons.film_fill;
-      case 'bills':
-        return CupertinoIcons.doc_text_fill;
-      case 'health':
-        return CupertinoIcons.heart_fill;
-      default:
-        return CupertinoIcons.money_dollar_circle_fill;
-    }
-  }
-
-  Widget _buildExpensePreviewSection(String title, List<Expense> expenses) {
-    if (expenses.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[600],
-          ),
-        ),
-        ...expenses.take(2).map((expense) => _buildExpensePreviewItem(expense)),
-      ],
     );
   }
 

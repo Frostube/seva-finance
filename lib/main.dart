@@ -145,7 +145,7 @@ class MyApp extends StatelessWidget {
             Provider.of<FirebaseFirestore>(_, listen: false),
             Provider.of<FirebaseStorage>(_, listen: false),
           ),
-        ),
+        ), 
         Provider(
           create: (_) => SavingsService(
             Hive.box<SavingsGoal>('savings_goals'),

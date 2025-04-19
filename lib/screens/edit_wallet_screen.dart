@@ -80,7 +80,6 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
   String _selectedType = 'Personal';
   late Color _selectedColor;
   late IconData _selectedIcon;
-  bool _isDeleting = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -236,10 +235,6 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
   }
 
   Future<void> _confirmDelete() async {
-    setState(() {
-      _isDeleting = true;
-    });
-
     try {
       await _walletService.deleteWallet(widget.wallet.id);
       widget.onWalletUpdated();
@@ -251,12 +246,6 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to delete wallet')),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isDeleting = false;
-        });
       }
     }
   }

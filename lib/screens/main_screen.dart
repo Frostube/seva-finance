@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'expenses_screen.dart';
 import 'profile_screen.dart';
@@ -95,64 +94,6 @@ class _MainScreenState extends State<MainScreen> {
                 fontSize: 12,
                 color: isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAIChatModal() {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'AI Assistant',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.darkGreen,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.xmark),
-                    onPressed: () => Navigator.pop(context),
-                    color: AppTheme.darkGreen,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  'AI Chat Interface\nComing Soon',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.darkGreen.withOpacity(0.7),
-                    fontSize: 16,
-                  ),
-                ),
               ),
             ),
           ],

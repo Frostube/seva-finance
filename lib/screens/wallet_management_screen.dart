@@ -43,7 +43,7 @@ class WalletManagementScreen extends StatelessWidget {
                               wallet: wallet,
                               onWalletUpdated: () {
                                 // Refresh the wallet list
-                                walletService.notifyListeners();
+                                Provider.of<WalletService>(context, listen: false).notifyListeners();
                               },
                             ),
                           ),
