@@ -263,21 +263,135 @@ class ReceiptParser {
     // Extract date if possible
     final date = _extractDate(ocrData) ?? DateTime.now();
     
+    // Extract line items
+    final items = <ReceiptItem>[];
+    final fullText = _extractFullText(ocrData);
+    final lines = fullText.split('\n');
+    
+    // Common patterns for item lines in Spanish receipts
+    final itemPatterns = [
+      // Price at end: "ITEM NAME 12,34€"
+      RegExp(r'^([^0-9€]+)\s+(\d+[,.]\d+)€?$'),
+      // Price with quantity: "2 X ITEM NAME 12,34€"
+      RegExp(r'^(\d+)\s*[Xx]\s*([^0-9€]+)\s+(\d+[,.]\d+)€?$'),
+      // Price with unit price: "ITEM NAME 2 x 6,17€ 12,34€"
+      RegExp(r'^([^0-9€]+)\s+(\d+)\s*[Xx]\s*(\d+[,.]\d+)€?\s+(\d+[,.]\d+)€?$'),
+    ];
+    
+    bool inItemSection = false;
+    for (final line in lines) {
+      final trimmedLine = line.trim();
+      
+      // Skip empty lines and separators
+      if (trimmedLine.isEmpty || trimmedLine.contains('---')) continue;
+      
+      // Skip common header/footer lines
+      if (trimmedLine.toLowerCase().contains('factura') ||
+          trimmedLine.toLowerCase().contains('ticket') ||
+          trimmedLine.toLowerCase().contains('gracias') ||
+          trimmedLine.toLowerCase().contains('total') ||
+          trimmedLine.toLowerCase().contains('iva') ||
+          trimmedLine.toLowerCase().contains('efectivo') ||
+          trimmedLine.toLowerCase().contains('cambio')) {
+        continue;
+      }
+      
+      // Try each pattern
+      bool lineMatched = false;
+      for (final pattern in itemPatterns) {
+        final match = pattern.firstMatch(trimmedLine);
+        if (match != null) {
+          if (pattern == itemPatterns[0]) {
+            // Simple price at end
+            final name = match.group(1)!.trim();
+            final price = _parseDouble(match.group(2));
+            items.add(ReceiptItem(
+              name: name,
+              unitPrice: price,
+              quantity: 1,
+              totalPrice: price,
+              category: _categorizeItem(name),
+            ));
+          } else if (pattern == itemPatterns[1]) {
+            // Quantity x Item format
+            final quantity = int.parse(match.group(1)!);
+            final name = match.group(2)!.trim();
+            final totalPrice = _parseDouble(match.group(3));
+            final unitPrice = totalPrice / quantity;
+            items.add(ReceiptItem(
+              name: name,
+              unitPrice: unitPrice,
+              quantity: quantity,
+              totalPrice: totalPrice,
+              category: _categorizeItem(name),
+            ));
+          } else if (pattern == itemPatterns[2]) {
+            // Item with unit price and total
+            final name = match.group(1)!.trim();
+            final quantity = int.parse(match.group(2)!);
+            final unitPrice = _parseDouble(match.group(3));
+            final totalPrice = _parseDouble(match.group(4));
+            items.add(ReceiptItem(
+              name: name,
+              unitPrice: unitPrice,
+              quantity: quantity,
+              totalPrice: totalPrice,
+              category: _categorizeItem(name),
+            ));
+          }
+          lineMatched = true;
+          inItemSection = true;
+          break;
+        }
+      }
+      
+      // If we've been matching items but now we don't, we might be at the end
+      if (inItemSection && !lineMatched) {
+        // Look for total amount in this section
+        final totalMatch = RegExp(r'total:?\s*(\d+[,.]\d+)', caseSensitive: false).firstMatch(trimmedLine);
+        if (totalMatch != null) {
+          inItemSection = false;
+        }
+      }
+    }
+    
     // Try to extract total amount
     final total = _extractTotal(ocrData);
     
-    // Create a receipt with minimal information
+    // Validate parsed data
+    bool needsReview = false;
+    
+    // Check if we captured enough line items (at least 70%)
+    final calculatedTotal = items.fold(0.0, (sum, item) => sum + item.totalPrice);
+    if (total > 0 && items.isNotEmpty) {
+      // Check if calculated total is within ±1 cent of receipt total
+      if ((calculatedTotal - total).abs() > 0.01) {
+        needsReview = true;
+      }
+      
+      // Check if we captured at least 70% of line items
+      // We estimate this by comparing the calculated total with the receipt total
+      if (calculatedTotal / total < 0.7) {
+        needsReview = true;
+      }
+    } else {
+      // If we couldn't parse any items or total, definitely needs review
+      needsReview = true;
+    }
+    
+    // Create receipt with minimal information
     return Receipt(
       userId: userId,
       vendorName: vendorName,
       location: location,
       date: date,
-      items: [], // No line items parsed
+      items: items,
       subtotal: total * 0.9, // Estimate subtotal as 90% of total
       tax: total * 0.1, // Estimate tax as 10% of total
       total: total,
       rawOcrData: ocrData,
-      notes: 'This receipt was processed using generic parsing. Please review for accuracy.',
+      needsReview: needsReview,
+      notes: needsReview ? 'This receipt was processed using generic parsing and needs review.' : null,
     );
   }
   
@@ -416,7 +530,8 @@ class ReceiptParser {
     
     // Skip header lines and footer lines
     bool processingItems = false;
-    final itemRegex = RegExp(r'^(.*?)\s+(\d+[,.]\d+)€?$');
+    // Updated regex to handle 4-digit article codes
+    final itemRegex = RegExp(r'^(?:\d{4}\s+)?([^0-9€]+)\s+(\d+[,.]\d+)€?$');
     
     for (final line in lines) {
       final trimmedLine = line.trim();
@@ -467,6 +582,13 @@ class ReceiptParser {
       }
     }
     
+    // Validate totals
+    bool needsReview = false;
+    final calculatedTotal = items.fold(0.0, (sum, item) => sum + item.totalPrice);
+    if ((calculatedTotal - total).abs() > 0.01) {
+      needsReview = true;
+    }
+    
     return Receipt(
       userId: userId,
       vendorName: vendorName,
@@ -477,6 +599,7 @@ class ReceiptParser {
       tax: tax,
       total: total,
       rawOcrData: ocrData,
+      needsReview: needsReview,
     );
   }
   

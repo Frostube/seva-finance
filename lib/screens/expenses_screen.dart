@@ -20,6 +20,11 @@ import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../services/receipt_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/receipt.dart';
+import '../data/firestore_repo.dart';
+import '../theme/app_theme.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -29,6 +34,11 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
+  final _auth = FirebaseAuth.instance;
+  final _firestoreRepo = FirestoreRepo();
+
+  User? get currentUser => _auth.currentUser;
+
   // Color palette for pie chart - more distinguishable pastels
   static const pieColors = [
     Color(0xFF40916C), // Main green
@@ -1229,46 +1239,112 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           },
         ),
       ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF40916C),
-              Color(0xFF1B4332),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1B4332).withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          heroTag: 'scan_receipt',
-          onPressed: () {},
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          label: Row(
-            children: [
-              const Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Scan Receipt',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+      floatingActionButton: Stack(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF40916C),
+                  Color(0xFF1B4332),
+                ],
               ),
-            ],
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1B4332).withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: FloatingActionButton.extended(
+              heroTag: 'scan_receipt',
+              onPressed: () {},
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              label: Row(
+                children: [
+                  const Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Scan Receipt',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          // Review badge
+          StreamBuilder<List<Receipt>>(
+            stream: _firestoreRepo.getReceiptsStream(currentUser?.uid ?? ''),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              
+              final receiptsNeedingReview = snapshot.data!
+                  .where((receipt) => receipt.needsReview == true)
+                  .length;
+              
+              if (receiptsNeedingReview == 0) return const SizedBox.shrink();
+              
+              return Positioned(
+                right: 0,
+                top: 0,
+                child: GestureDetector(
+                  onTap: () {
+                    // TODO: Navigate to review screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '$receiptsNeedingReview receipt${receiptsNeedingReview == 1 ? '' : 's'} need${receiptsNeedingReview == 1 ? 's' : ''} review',
+                          style: GoogleFonts.inter(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red.shade700,
+                        behavior: SnackBarBehavior.floating,
+                        action: SnackBarAction(
+                          label: 'REVIEW',
+                          textColor: Colors.white,
+                          onPressed: () {
+                            // TODO: Navigate to review screen
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade700,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.shade700.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      '$receiptsNeedingReview',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

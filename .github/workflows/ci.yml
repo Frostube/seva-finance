@@ -28,20 +28,41 @@ jobs:
           echo "VERYFI_USERNAME=dummy@example.com" >> .env
           echo "MINDEE_API_KEY=dummy_key" >> .env
           
-      - name: Verify environment variables are accessible
+      - name: Verify environment variables are accessible and non-empty
         run: |
           # Create a simple Dart script to check env vars
           echo 'import "package:flutter_dotenv/flutter_dotenv.dart";
-          
+
           void main() async {
             await dotenv.load(fileName: ".env");
-            final veryfiKey = dotenv.env["VERYFI_API_KEY"];
-            if (veryfiKey == null || veryfiKey.isEmpty) {
-              print("ERROR: Missing required environment variables");
-              throw Exception("Missing environment variables");
-            } else {
-              print("Environment variables loaded successfully");
+            
+            // List of required environment variables
+            final requiredVars = [
+              "VERYFI_API_KEY",
+              "VERYFI_CLIENT_ID",
+              "VERYFI_USERNAME",
+              "MINDEE_API_KEY",
+            ];
+            
+            // Check each required variable
+            final missingVars = <String>[];
+            for (final varName in requiredVars) {
+              final value = dotenv.env[varName];
+              if (value == null || value.trim().isEmpty) {
+                missingVars.add(varName);
+              }
             }
+            
+            // Report any missing or empty variables
+            if (missingVars.isNotEmpty) {
+              print("ERROR: The following environment variables are missing or empty:");
+              for (final varName in missingVars) {
+                print("  - $varName");
+              }
+              throw Exception("Missing or empty environment variables");
+            }
+            
+            print("All required environment variables are present and non-empty");
           }' > check_env.dart
           
           dart run check_env.dart
