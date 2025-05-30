@@ -7,6 +7,8 @@ import '../models/spending_alert.dart';
 import '../services/savings_service.dart';
 import 'set_savings_goal_sheet.dart';
 import 'set_spending_alert_sheet.dart';
+import 'package:provider/provider.dart';
+import '../services/wallet_service.dart';
 
 class GoalsAndAlertsScreen extends StatefulWidget {
   final String walletId;
@@ -116,7 +118,7 @@ class _GoalsAndAlertsScreenState extends State<GoalsAndAlertsScreen> {
             ),
             const SizedBox(height: 8),
             LinearProgressIndicator(
-              value: goal.getProgress(0), // TODO: Pass actual current balance
+              value: goal.getProgress(Provider.of<WalletService>(context, listen: false).getAllWallets().firstWhere((w) => w.id == widget.walletId).balance),
               backgroundColor: Colors.grey[200],
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1B4332)),
             ),
