@@ -21,6 +21,31 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       
+      - name: Create dummy .env file for testing
+        run: |
+          echo "VERYFI_API_KEY=dummy_key" > .env
+          echo "VERYFI_CLIENT_ID=dummy_id" >> .env
+          echo "VERYFI_USERNAME=dummy@example.com" >> .env
+          echo "MINDEE_API_KEY=dummy_key" >> .env
+          
+      - name: Verify environment variables are accessible
+        run: |
+          # Create a simple Dart script to check env vars
+          echo 'import "package:flutter_dotenv/flutter_dotenv.dart";
+          
+          void main() async {
+            await dotenv.load(fileName: ".env");
+            final veryfiKey = dotenv.env["VERYFI_API_KEY"];
+            if (veryfiKey == null || veryfiKey.isEmpty) {
+              print("ERROR: Missing required environment variables");
+              throw Exception("Missing environment variables");
+            } else {
+              print("Environment variables loaded successfully");
+            }
+          }' > check_env.dart
+          
+          dart run check_env.dart
+      
       - name: Verify formatting
         run: dart format --set-exit-if-changed .
       

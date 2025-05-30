@@ -73,5 +73,80 @@ void main() {
       // Verify the receipt has no items
       expect(receipt.items.length, 0);
     });
+    
+    test('parseReceipt should detect and mark unknown formats for review', () {
+      // Mock OCR data with unknown format
+      final mockOcrData = {
+        'text': 'Some random receipt text without known vendor',
+        'total': '15.99',
+      };
+      
+      // Parse with the generic method
+      final receipt = receiptParser.parseReceipt(mockOcrData, mockUserId);
+      
+      // Verify it's marked for review
+      expect(receipt.needsReview, true);
+      expect(receipt.total, 15.99);
+    });
+    
+    test('parseReceipt should properly handle Carrefour receipts', () {
+      // Mock Carrefour receipt OCR data
+      final mockOcrData = {
+        'text': '''
+CARREFOUR EXPRESS
+Calle Gran Via, 54
+Madrid 28013
+CIF: A-12345678
+Tel: 910 000 000
+-----------------------
+Ticket: 1234
+Fecha: 12/05/2023 17:30
+-----------------------
+LECHE SEMI 1L     1,25€
+PAN BARRA         0,75€
+TOMATE FRITO      1,45€
+QUESO FRESCO      2,35€
+MANZANAS 1KG      1,99€
+-----------------------
+SUBTOTAL:         7,79€
+IVA (10%):        0,78€
+TOTAL:            8,57€
+-----------------------
+TARJETA:          8,57€
+-----------------------
+GRACIAS POR SU VISITA
+        ''',
+        'vendor': {'name': 'CARREFOUR EXPRESS'},
+        'date': '2023-05-12',
+        'total': '8.57',
+      };
+      
+      // Parse with our receipt parser
+      final receipt = receiptParser.parseReceipt(mockOcrData, mockUserId);
+      
+      // Verify basic receipt data
+      expect(receipt.vendorName, 'CARREFOUR EXPRESS');
+      expect(receipt.date.year, 2023);
+      expect(receipt.date.month, 5);
+      expect(receipt.date.day, 12);
+      expect(receipt.total, 8.57);
+      
+      // This test should initially fail because we need to implement Carrefour-specific parsing
+      // Verify items were parsed correctly
+      expect(receipt.items.length, 5, reason: 'Should parse all 5 items from the Carrefour receipt');
+      
+      // Check specific items
+      final milkItem = receipt.items.firstWhere((item) => item.name.contains('LECHE'));
+      expect(milkItem.totalPrice, 1.25);
+      expect(milkItem.category, ItemCategory.dairy);
+      
+      final breadItem = receipt.items.firstWhere((item) => item.name.contains('PAN'));
+      expect(breadItem.totalPrice, 0.75);
+      expect(breadItem.category, ItemCategory.bakery);
+      
+      final appleItem = receipt.items.firstWhere((item) => item.name.contains('MANZANAS'));
+      expect(appleItem.totalPrice, 1.99);
+      expect(appleItem.category, ItemCategory.produce);
+    });
   });
 } 

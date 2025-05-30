@@ -85,6 +85,7 @@ class Receipt {
   final String? imageUrl;
   final String? notes;
   final Map<String, dynamic>? rawOcrData;
+  final bool needsReview;
   
   Receipt({
     String? id,
@@ -99,6 +100,7 @@ class Receipt {
     this.imageUrl,
     this.notes,
     this.rawOcrData,
+    this.needsReview = false,
   }) : id = id ?? const Uuid().v4();
   
   Map<String, dynamic> toJson() {
@@ -115,12 +117,13 @@ class Receipt {
       'imageUrl': imageUrl,
       'notes': notes,
       'rawOcrData': rawOcrData,
+      'needsReview': needsReview,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
   
   factory Receipt.fromJson(Map<String, dynamic> json) {
-    final items = (json['items'] as List)
+    final items = (json['items'] as List? ?? [])
         .map((item) => ReceiptItem.fromJson(item))
         .toList();
     
@@ -131,12 +134,13 @@ class Receipt {
       location: json['location'],
       date: (json['date'] as Timestamp).toDate(),
       items: items,
-      subtotal: json['subtotal'].toDouble(),
-      tax: json['tax'].toDouble(),
-      total: json['total'].toDouble(),
+      subtotal: (json['subtotal'] ?? 0.0).toDouble(),
+      tax: (json['tax'] ?? 0.0).toDouble(),
+      total: (json['total'] ?? 0.0).toDouble(),
       imageUrl: json['imageUrl'],
       notes: json['notes'],
       rawOcrData: json['rawOcrData'],
+      needsReview: json['needsReview'] ?? false,
     );
   }
 } 
