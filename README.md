@@ -42,4 +42,4 @@ flutter run
 
 Our app eliminates the friction in financial tracking, allowing you to focus on making better financial decisions rather than logging data. With beautiful visualizations and intelligent insights, managing your finances becomes effortless.
 
-[View Demo](https://seva-finance-app.web.app)
+[View Demo](https://seva-finance-app.web.app){:target="_blank"}
