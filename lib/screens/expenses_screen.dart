@@ -20,11 +20,6 @@ import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../services/receipt_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../models/receipt.dart';
-import '../data/firestore_repo.dart';
-import '../theme/app_theme.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -34,11 +29,6 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  final _auth = FirebaseAuth.instance;
-  final _firestoreRepo = FirestoreRepo();
-
-  User? get currentUser => _auth.currentUser;
-
   // Color palette for pie chart - more distinguishable pastels
   static const pieColors = [
     Color(0xFF40916C), // Main green
@@ -818,7 +808,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       child: Text(
                         'Expenses & Budget',
                         style: GoogleFonts.inter(
-                          fontSize: 28,
+                          fontSize: 20,
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
                         ),
@@ -924,7 +914,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                   child: Text(
                                     'Expenses & Budget',
                                     style: GoogleFonts.inter(
-                                      fontSize: 28,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black,
                                     ),
@@ -938,16 +928,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                   onPressed: _showAddOptions,
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 8),
-                            // Add wallet balance line
-                            Text(
-                              'Balance: ${formatter.format(primaryWallet.balance)}',
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
                             ),
                             const SizedBox(height: 24),
                             Row(
@@ -1053,57 +1033,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         ),
                       ),
 
-                      // AI Tip Banner with carousel dots
+                      // My Spending Card - NEW
                       Container(
-                        margin: const EdgeInsets.all(24),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE9F1EC),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                CupertinoIcons.lightbulb,
-                                color: Color(0xFF1B4332),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Tip: Your grocery spending is 15% higher than last month',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: const Color(0xFF1B4332),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Spending Breakdown with improved chart
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 24),
-                        padding: const EdgeInsets.all(24),
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
                               offset: const Offset(0, 2),
                             ),
                           ],
@@ -1111,126 +1052,353 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text(
+                              'My Spending',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: const Color(0xFF4A4A4A), // Medium-dark gray
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Spending Breakdown',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _showMonthPicker,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  icon: const Icon(
-                                    CupertinoIcons.calendar_today,
-                                    size: 20,
-                                    color: Color(0xFF1B4332),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 32),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  height: 180,
-                                  width: 180,
-                                  child: Stack(
-                                    children: [
-                                      PieChart(
-                                        PieChartData(
-                                          sections: currentExpenses.entries.map((entry) {
-                                            final index = currentExpenses.keys.toList().indexOf(entry.key);
-                                            return PieChartSectionData(
-                                              value: entry.value,
-                                              color: pieColors[index % pieColors.length],
-                                              radius: 40,
-                                              showTitle: false,
-                                            );
-                                          }).toList(),
-                                          sectionsSpace: 0,
-                                          centerSpaceRadius: 40,
-                                        ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      // Placeholder amount - will need to be dynamic
+                                      _formatCurrency(7221.18), 
+                                      style: GoogleFonts.inter(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w600, // Semibold/Bold
+                                        color: const Color(0xFF1C1C1E), // Very dark gray
                                       ),
-                                      Center(
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          CupertinoIcons.arrow_up, // Or arrow_down
+                                          color: Color(0xFF34C759), // Forest green
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '4.9% ',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            color: const Color(0xFF34C759), // Forest green
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          'From last week',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            color: const Color(0xFF8E8E93), // Medium gray
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                // Placeholder for Mini Bar Chart
+                                Container(
+                                  padding: const EdgeInsets.only(top: 8), // Increased top padding from 4 to 8
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end, // Ensures day columns align their bottoms
+                                    children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 3.0), // Adjusted for 6px spacing (3px each side)
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text(
-                                              'Total',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                color: Colors.grey[600],
+                                            Container(
+                                              height: day == 'W' ? 22 : 12, // Adjusted example heights for more presence
+                                              width: 8, // Increased bar width from 6 to 8
+                                              decoration: BoxDecoration( // Added BoxDecoration for rounded corners
+                                                color: day == 'W' 
+                                                    ? const Color(0xFF34C759) 
+                                                    : const Color(0xFF34C759).withOpacity(0.45), // Increased opacity from 0.2 to 0.45
+                                                borderRadius: BorderRadius.circular(2), // Added slight rounding to bar tops
                                               ),
                                             ),
+                                            const SizedBox(height: 6), // Increased spacing from 4 to 6
                                             Text(
-                                              _formatCurrency(totalSpent),
+                                              day,
                                               style: GoogleFonts.inter(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.black,
+                                                fontSize: 12, // Increased font size from 10 to 12
+                                                color: const Color(0xFF8E8E93), // Changed color from #C7C7CC to #8E8E93
+                                                fontWeight: FontWeight.normal, // Ensuring it's regular weight
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    }).toList(),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 32),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                child: Row(
-                                  children: [
-                                    for (var entry in currentExpenses.entries)
-                                      _buildCategoryChip(
-                                        category: entry.key,
-                                        amount: entry.value,
-                                        color: pieColors[currentExpenses.keys.toList().indexOf(entry.key) % pieColors.length],
-                                        icon: _categoryIcons[entry.key] ?? CupertinoIcons.money_dollar_circle,
-                                        trend: 0.0, // Default trend value
-                                        expense: Expense(
-                                          id: 'default',
-                                          amount: entry.value,
-                                          category: entry.key,
-                                          date: DateTime.now(),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Text(
-                                "You're on track this month — ${(remainingBudget / budget * 100).toStringAsFixed(0)}% of budget remaining!",
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: const Color(0xFF40916C),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
+                      // END My Spending Card
+
+                      // New "Expense" Card with Line Chart and Category List
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Row
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0, bottom: 0.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Expense',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w400,
+                                          color: Color(0xFF3C3C43),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '-${_formatCurrency(totalSpent.abs())}',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1C1C1E),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  GestureDetector(
+                                    onTap: _showMonthPicker,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: const Color(0xFFD1D1D6),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            DateFormat('MMM yyyy').format(_selectedMonth),
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                              color: Color(0xFF3C3C43),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF3C3C43)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Line/Area Chart - Static Visual Placeholder
+                            Container(
+                              height: 120,
+                              padding: const EdgeInsets.only(top: 8, bottom: 0, right: 16, left: 8),
+                              child: LineChart(
+                                LineChartData(
+                                  gridData: FlGridData(show: false),
+                                  titlesData: FlTitlesData(
+                                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 30,
+                                        interval: 1,
+                                        getTitlesWidget: (double value, TitleMeta meta) {
+                                          final style = const TextStyle(
+                                            fontFamily: 'Inter',
+                                            color: Color(0xFF8E8E93),
+                                            fontWeight: FontWeight.w400,
+                                            fontSize: 12,
+                                          );
+                                          String text;
+                                          switch (value.toInt()) {
+                                            case 0: text = 'Feb'; break;
+                                            case 1: text = 'Mar'; break;
+                                            case 2: text = 'Apr'; break;
+                                            case 3: text = 'May'; break;
+                                            case 4: text = 'Jun'; break;
+                                            case 5: text = 'Jul'; break;
+                                            default: return Container();
+                                          }
+                                          return Padding(
+                                            padding: const EdgeInsets.only(top: 6.0),
+                                            child: Text(text, style: style, textAlign: TextAlign.center),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  minX: 0,
+                                  maxX: 5,
+                                  minY: 0,
+                                  maxY: 2500,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: const [
+                                        FlSpot(0, 800),
+                                        FlSpot(1, 1200),
+                                        FlSpot(2, 1000),
+                                        FlSpot(3, 1800),
+                                        FlSpot(4, 1975),
+                                        FlSpot(5, 1600),
+                                      ],
+                                      isCurved: true,
+                                      curveSmoothness: 0.35,
+                                      color: const Color(0xFF34C759),
+                                      barWidth: 2.5,
+                                      isStrokeCapRound: true,
+                                      dotData: FlDotData(
+                                        show: true,
+                                        getDotPainter: (spot, percent, barData, index) {
+                                          final isSelected = index == 4;
+                                          return FlDotCirclePainter(
+                                            radius: isSelected ? 4 : 3,
+                                            color: const Color(0xFF34C759).withOpacity(isSelected ? 1.0 : 0.8),
+                                            strokeWidth: isSelected ? 1 : 0,
+                                            strokeColor: Colors.white,
+                                          );
+                                        },
+                                      ),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(0xFF34C759).withOpacity(0.4),
+                                            const Color(0xFF34C759).withOpacity(0.1),
+                                          ],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  lineTouchData: LineTouchData(
+                                    handleBuiltInTouches: true,
+                                    getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+                                      return spotIndexes.map((index) {
+                                        return TouchedSpotIndicatorData(
+                                          const FlLine(
+                                            color: Color(0xFFD1D1D6),
+                                            strokeWidth: 1,
+                                          ),
+                                          FlDotData(
+                                            getDotPainter: (spot, percent, barData, index) {
+                                              return FlDotCirclePainter(
+                                                radius: 4,
+                                                color: const Color(0xFF34C759),
+                                                strokeWidth: 1,
+                                                strokeColor: Colors.white,
+                                              );
+                                            },
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
+                                    touchTooltipData: LineTouchTooltipData(
+                                      // tooltipBgColor: const Color(0xFFF3F3F5), // Commented out again
+                                      // tooltipRoundedRadius: 6, // Commented out again
+                                      tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      tooltipMargin: 8, 
+                                      fitInsideHorizontally: true,
+                                      fitInsideVertically: true,
+                                      getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                                        return touchedBarSpots.map((barSpot) {
+                                          return LineTooltipItem(
+                                            _formatCurrency(barSpot.y),
+                                            const TextStyle( 
+                                              fontFamily: 'Inter',
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black,
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                    ),
+                                    touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
+                                      // Handle touch events if needed
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            Text(
+                              'Categories',
+                              style: const TextStyle( // SF Pro Font
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Example Category Item (will be a list)
+                            _buildCategoryListItem('Healthcare', 450.00),
+                            _buildCategoryListItem('Groceries', 250.75),
+                            _buildCategoryListItem('Utilities', 275.50),
+                            _buildCategoryListItem('Transportation', 150.25),
+                            _buildCategoryListItem('Entertainment', 120.00),
+                            _buildCategoryListItem('Shopping', 310.90),
+                          ],
+                        ),
+                      ),
+                      // END New "Expense" Card
 
                       const SizedBox(height: 24),
 
                       // Recent Expenses Preview
                       _buildRecentExpensesPreview(),
 
-                      const SizedBox(height: 100), // Space for FAB
+                      const SizedBox(height: 100),
                     ],
                   ),
                 );
@@ -1239,110 +1407,88 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           },
         ),
       ),
-      floatingActionButton: Stack(
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF40916C),
+              Color(0xFF1B4332),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1B4332).withOpacity(0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          heroTag: 'scan_receipt',
+          onPressed: () {
+            // TODO: Implement scan receipt functionality
+          },
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          label: Row(
+            children: [
+              const Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Scan Receipt',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper method for category list item (NEW - add this at the end of the class or in a helpers file)
+  Widget _buildCategoryListItem(String categoryName, double amount) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
         children: [
           Container(
-            margin: const EdgeInsets.only(bottom: 24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF40916C),
-                  Color(0xFF1B4332),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1B4332).withOpacity(0.2),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Color(0xFF007A3D),
+              shape: BoxShape.circle,
             ),
-            child: FloatingActionButton.extended(
-              heroTag: 'scan_receipt',
-              onPressed: () {},
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              label: Row(
-                children: [
-                  const Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Scan Receipt',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              categoryName,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16,
+                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
-          // Review badge
-          StreamBuilder<List<Receipt>>(
-            stream: _firestoreRepo.getReceiptsStream(currentUser?.uid ?? ''),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const SizedBox.shrink();
-              
-              final receiptsNeedingReview = snapshot.data!
-                  .where((receipt) => receipt.needsReview == true)
-                  .length;
-              
-              if (receiptsNeedingReview == 0) return const SizedBox.shrink();
-              
-              return Positioned(
-                right: 0,
-                top: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    // TODO: Navigate to review screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '$receiptsNeedingReview receipt${receiptsNeedingReview == 1 ? '' : 's'} need${receiptsNeedingReview == 1 ? 's' : ''} review',
-                          style: GoogleFonts.inter(color: Colors.white),
-                        ),
-                        backgroundColor: Colors.red.shade700,
-                        behavior: SnackBarBehavior.floating,
-                        action: SnackBarAction(
-                          label: 'REVIEW',
-                          textColor: Colors.white,
-                          onPressed: () {
-                            // TODO: Navigate to review screen
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade700,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.shade700.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '$receiptsNeedingReview',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+          Text(
+            _formatCurrency(amount),
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 16,
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

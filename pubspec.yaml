@@ -48,8 +48,6 @@ dependencies:
   lucide_icons: ^0.257.0
   uuid: ^4.2.1
   shared_preferences: ^2.2.2
-  http: ^1.1.0
-  flutter_dotenv: ^5.1.0
   
   # Hive Database
   hive: ^2.2.3
@@ -109,6 +107,7 @@ flutter:
     - assets/images/visa_logo.png
     - assets/images/ChatGPT Image 19 abr 2025, 13_33_51.png
     - assets/app_icons/
+    - assets/fonts/
 
 # App Icon Configuration
 flutter_launcher_icons:
@@ -148,3 +147,15 @@ flutter_launcher_icons:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
