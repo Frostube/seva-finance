@@ -71,6 +71,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   void _saveExpense() async {
+    print('AddExpenseScreen: _saveExpense called.'); // LOG
     final amount = _getAmountValue();
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,22 +80,39 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
 
-    final expense = Expense(
+    final newExpense = Expense(
       id: widget.initialExpense?.id ?? _uuid.v4(),
       amount: amount,
       category: _selectedCategory,
       date: _selectedDate,
       note: _noteController.text.isEmpty ? null : _noteController.text,
     );
+    print('AddExpenseScreen: Expense object created. ID: ${newExpense.id}, Category: ${newExpense.category}, Amount: ${newExpense.amount}'); // LOG
 
-    if (widget.initialExpense != null) {
-      widget.expenseService.updateExpense(expense);
-    } else {
-      widget.expenseService.addExpense(expense);
+    try {
+      if (widget.initialExpense != null) {
+        print('AddExpenseScreen: BEFORE calling expenseService.updateExpense'); // LOG
+        await widget.expenseService.updateExpense(newExpense); // Changed from addExpense to updateExpense for existing
+        print('AddExpenseScreen: AFTER calling expenseService.updateExpense'); // LOG
+      } else {
+        print('AddExpenseScreen: BEFORE calling expenseService.addExpense'); // LOG
+        await widget.expenseService.addExpense(newExpense);
+        print('AddExpenseScreen: AFTER calling expenseService.addExpense'); // LOG
+      }
+      
+      print('AddExpenseScreen: BEFORE calling onExpenseAdded callback.'); // LOG
+      widget.onExpenseAdded();
+      print('AddExpenseScreen: AFTER onExpenseAdded callback.'); // LOG
+      
+      Navigator.pop(context, true);
+      print('AddExpenseScreen: Popped context.'); // LOG
+    } catch (e) {
+      print('AddExpenseScreen: Error saving expense: $e'); // LOG
+      // Optionally, show a SnackBar or dialog for the error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving expense: $e')),
+      );
     }
-    
-    widget.onExpenseAdded();
-    Navigator.pop(context, true);
   }
 
   void _showCategoryPicker() {

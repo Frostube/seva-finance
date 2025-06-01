@@ -15,10 +15,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 class RecentExpensesScreen extends StatefulWidget {
   final ExpenseService expenseService;
+  final String? categoryForMonthFilter;
+  final DateTime? monthForCategoryFilter;
 
   const RecentExpensesScreen({
     Key? key,
     required this.expenseService,
+    this.categoryForMonthFilter,
+    this.monthForCategoryFilter,
   }) : super(key: key);
 
   @override
@@ -51,12 +55,21 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
     final expenses = await _expenseService.getAllExpenses();
     setState(() {
       _expenses = expenses;
+      _filterExpenses();
     });
   }
 
   void _filterExpenses() {
     setState(() {
       _filteredExpenses = _expenses.where((expense) {
+        // Category and Month filter (if provided)
+        if (widget.categoryForMonthFilter != null && widget.monthForCategoryFilter != null) {
+          bool matchesCategoryAndMonth = expense.category == widget.categoryForMonthFilter &&
+              expense.date.year == widget.monthForCategoryFilter!.year &&
+              expense.date.month == widget.monthForCategoryFilter!.month;
+          if (!matchesCategoryAndMonth) return false;
+        }
+
         // Search in category, note, and amount
         final matchesSearch = _searchQuery.isEmpty || 
             expense.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -222,9 +235,12 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final groupedExpenses = _selectedCategory == 'All' 
+    final groupedExpenses = _selectedCategory == 'All'  && widget.categoryForMonthFilter == null
         ? _groupExpensesByTimeline()
         : {'': _filteredExpenses};
+
+    // If filtering by a specific category and month, don't show timeline groups
+    final shouldShowTimeline = widget.categoryForMonthFilter == null && _selectedCategory == 'All';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -232,7 +248,9 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          'Recent Expenses',
+          widget.categoryForMonthFilter != null 
+              ? '${widget.categoryForMonthFilter} Expenses (${DateFormat('MMMM yyyy').format(widget.monthForCategoryFilter!)})' 
+              : 'Recent Expenses',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -286,21 +304,23 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
                 'Other'
               ].map((category) {
                 final isSelected = _selectedCategory == category;
+                // Disable category filter chips if a specific category is already passed as a filter
+                final bool isChipDisabled = widget.categoryForMonthFilter != null;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
                     selected: isSelected,
                     label: Text(category),
-                    onSelected: (selected) {
+                    onSelected: isChipDisabled ? null : (selected) {
                       setState(() {
-                        _selectedCategory = selected ? category : null;
+                        _selectedCategory = selected ? category : 'All'; // Default to 'All' if deselected
                         _filterExpenses();
                       });
                     },
-                    backgroundColor: Colors.grey[100],
+                    backgroundColor: isChipDisabled ? Colors.grey[300] : Colors.grey[100],
                     selectedColor: const Color(0xFFE9F1EC),
                     labelStyle: GoogleFonts.inter(
-                      color: isSelected ? const Color(0xFF1B4332) : Colors.black87,
+                      color: isChipDisabled ? Colors.grey[500] : (isSelected ? const Color(0xFF1B4332) : Colors.black87),
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                     shape: RoundedRectangleBorder(
@@ -318,7 +338,10 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
             child: _filteredExpenses.isEmpty
               ? Center(
                   child: Text(
-                    'No expenses found',
+                    widget.categoryForMonthFilter != null && _searchQuery.isEmpty
+                        ? 'No expenses for ${widget.categoryForMonthFilter} in ${DateFormat('MMMM yyyy').format(widget.monthForCategoryFilter!)}'
+                        : 'No expenses found',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       color: Colors.grey[600],
@@ -326,7 +349,7 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
                   ),
                 )
               : ListView(
-                  children: _selectedCategory == 'All'
+                  children: shouldShowTimeline
                     ? [
                         _buildTimelineSection('Today', groupedExpenses['Today']!),
                         _buildTimelineSection('This Week', groupedExpenses['This Week']!),
@@ -335,7 +358,7 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
                       ]
                     : [
                         const SizedBox(height: 8),
-                        ...groupedExpenses['']!.map((expense) => _buildExpenseItem(expense)).toList(),
+                        ..._filteredExpenses.map((expense) => _buildExpenseItem(expense)).toList(),
                         const SizedBox(height: 24), // Bottom padding
                       ],
                 ),

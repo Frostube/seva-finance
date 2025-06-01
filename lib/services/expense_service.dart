@@ -7,6 +7,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+// Helper class for category summary
+class CategoryMonthlySummary {
+  final String categoryName;
+  final double totalAmount;
+  final DateTime latestTransactionDateInMonth;
+
+  CategoryMonthlySummary({
+    required this.categoryName,
+    required this.totalAmount,
+    required this.latestTransactionDateInMonth,
+  });
+}
 
 class ExpenseService with ChangeNotifier {
   final StorageService _storageService;
@@ -19,10 +35,13 @@ class ExpenseService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<Expense> _expenses = [];
   bool _isLoading = false;
+  Future<void>? _initialLoadFuture;
 
   ExpenseService(this._storageService, this._budgetBox, this._expenseBox, this._walletService, this._notificationService, this._firestore, this._storage) {
-    _loadExpenses();
+    _initialLoadFuture = _loadExpenses();
   }
+
+  Future<void>? get initializationComplete => _initialLoadFuture;
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
@@ -82,13 +101,17 @@ class ExpenseService with ChangeNotifier {
 
   // Get all expenses for a specific month
   Future<List<Expense>> getExpensesForMonth(DateTime month) async {
+    print('ExpenseService: getExpensesForMonth called for month: $month. Internal _expenses count: ${_expenses.length}');
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
-    return _expenseBox.values.where((expense) {
+    // Filter the internal _expenses list, which is updated by add/delete/update operations
+    final filteredExpenses = _expenses.where((expense) {
       return expense.date.isAfter(startOfMonth.subtract(const Duration(seconds: 1))) &&
              expense.date.isBefore(endOfMonth.add(const Duration(seconds: 1)));
     }).toList();
+    print('ExpenseService: getExpensesForMonth for $month returning ${filteredExpenses.length} items.');
+    return filteredExpenses; // Directly return the synchronously filtered list
   }
 
   // Get total amount spent in a specific month
@@ -97,20 +120,90 @@ class ExpenseService with ChangeNotifier {
     return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  // Get expenses by category for a specific month
-  Future<Map<String, double>> getExpensesByCategory(DateTime month) async {
-    final expenses = await getExpensesForMonth(month);
-    final categoryTotals = <String, double>{};
-    
-    for (final expense in expenses) {
-      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0.0) + expense.amount;
+  // Get expenses by category for a specific month, sorted by recency
+  Future<List<CategoryMonthlySummary>> getExpensesByCategory(DateTime month) async {
+    print('ExpenseService: getExpensesByCategory called for $month');
+    final expensesForMonth = await getExpensesForMonth(month);
+
+    if (expensesForMonth.isEmpty) {
+      print('ExpenseService: No expenses found for $month. Returning empty list.');
+      return [];
+    }
+
+    final Map<String, Map<String, dynamic>> categoryData = {};
+
+    for (final expense in expensesForMonth) {
+      if (!categoryData.containsKey(expense.category)) {
+        categoryData[expense.category] = {
+          'total': 0.0,
+          // Initialize with a very old date to ensure first expense.date is picked
+          'latestDate': DateTime(1900), 
+        };
+      }
+      categoryData[expense.category]!['total'] = 
+          (categoryData[expense.category]!['total'] as double) + expense.amount;
+      
+      if (expense.date.isAfter(categoryData[expense.category]!['latestDate'] as DateTime)) {
+        categoryData[expense.category]!['latestDate'] = expense.date;
+      }
     }
     
-    return categoryTotals;
+    final List<CategoryMonthlySummary> summaries = categoryData.entries.map((entry) {
+      return CategoryMonthlySummary(
+        categoryName: entry.key,
+        totalAmount: entry.value['total'] as double,
+        latestTransactionDateInMonth: entry.value['latestDate'] as DateTime,
+      );
+    }).toList();
+
+    // Sort by latestTransactionDateInMonth (descending), then by totalAmount (descending) as a tie-breaker
+    summaries.sort((a, b) {
+      int dateCompare = b.latestTransactionDateInMonth.compareTo(a.latestTransactionDateInMonth);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+      return b.totalAmount.compareTo(a.totalAmount); // Secondary sort by amount if dates are same
+    });
+    
+    print('ExpenseService: getExpensesByCategory for $month returning ${summaries.length} summaries, sorted.');
+    return summaries;
+  }
+
+  // New method for 6-month summary
+  Future<Map<String, dynamic>> getMonthlyExpenseSummaryForLastSixMonths() async {
+    print('ExpenseService: getMonthlyExpenseSummaryForLastSixMonths START');
+    final List<FlSpot> spots = [];
+    final List<String> monthLabels = [];
+    double maxMonthlySpending = 0;
+
+    final now = DateTime.now();
+    
+    for (int i = 5; i >= 0; i--) {
+      final targetMonth = DateTime(now.year, now.month - i, 1);
+      final totalForMonth = await getTotalForMonth(targetMonth);
+      
+      // The FlSpot x-value will be 0 for the earliest month, up to 5 for the current month.
+      // So, for i=5 (earliest month), spotX is 0. For i=0 (current month), spotX is 5.
+      final spotX = 5 - i.toDouble();
+      spots.add(FlSpot(spotX, totalForMonth));
+      monthLabels.add(DateFormat('MMM').format(targetMonth)); // e.g., "Jan", "Feb"
+
+      if (totalForMonth > maxMonthlySpending) {
+        maxMonthlySpending = totalForMonth;
+      }
+      print('ExpenseService: Month: ${DateFormat('MMM yyyy').format(targetMonth)}, Total: $totalForMonth, SpotX: $spotX');
+    }
+    print('ExpenseService: getMonthlyExpenseSummaryForLastSixMonths END - Spots: ${spots.length}, MaxSpending: $maxMonthlySpending');
+    return {
+      'spots': spots,
+      'monthLabels': monthLabels,
+      'maxSpending': maxMonthlySpending,
+    };
   }
 
   // Add a new expense
   Future<void> addExpense(Expense expense) async {
+    print('ExpenseService: addExpense START - Category: ${expense.category}, Amount: ${expense.amount}');
     try {
       _isLoading = true;
       notifyListeners();
@@ -135,7 +228,9 @@ class ExpenseService with ChangeNotifier {
 
       // Save to local storage
       await _expenseBox.put(updatedExpense.id, updatedExpense);
+      print('ExpenseService: addExpense - Saved to _expenseBox. ID: ${updatedExpense.id}');
       _expenses.add(updatedExpense);
+      print('ExpenseService: addExpense - Added to internal _expenses list. New count: ${_expenses.length}');
 
       _notificationService.addActionNotification(
         title: 'New Expense Added',
@@ -145,6 +240,7 @@ class ExpenseService with ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      print('ExpenseService: addExpense END');
     } catch (e) {
       _isLoading = false;
       notifyListeners();
@@ -219,9 +315,15 @@ class ExpenseService with ChangeNotifier {
     final previousMonth = DateTime(
       currentMonth.year,
       currentMonth.month - 1,
-      currentMonth.day,
+      1, // Use 1 for the day to ensure it's the start of the previous month
     );
-    return getExpensesByCategory(previousMonth);
+    // Adapt to the new return type of getExpensesByCategory
+    final List<CategoryMonthlySummary> summaries = await getExpensesByCategory(previousMonth);
+    final Map<String, double> categoryTotals = {};
+    for (final summary in summaries) {
+      categoryTotals[summary.categoryName] = summary.totalAmount;
+    }
+    return categoryTotals;
   }
 
   // Calculate trend percentage for a category
@@ -330,5 +432,76 @@ class ExpenseService with ChangeNotifier {
         );
       }
     }
+  }
+
+  // New methods for "My Spending" card
+  Future<double> getTotalExpensesForDateRange(DateTime startDate, DateTime endDate) async {
+    final allExpenses = await getAllExpenses(); 
+    double total = 0.0;
+    for (var expense in allExpenses) {
+      // Ensure date comparison is done correctly (ignoring time part)
+      final expenseDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
+      final rangeStartDate = DateTime(startDate.year, startDate.month, startDate.day);
+      final rangeEndDate = DateTime(endDate.year, endDate.month, endDate.day);
+
+      if (!expenseDate.isBefore(rangeStartDate) && !expenseDate.isAfter(rangeEndDate)) {
+        total += expense.amount;
+      }
+    }
+    return total;
+  }
+
+  Future<List<double>> getDailyExpensesForWeek(DateTime dateInThatWeek) async {
+    final allExpenses = await getAllExpenses(); 
+    List<double> dailyTotals = List.filled(7, 0.0); // Monday to Sunday
+
+    // Determine Monday of the week for dateInThatWeek
+    // In Dart, weekday is 1 (Monday) to 7 (Sunday).
+    int daysToSubtract = dateInThatWeek.weekday - 1; // Monday (1) - 1 = 0. Sunday (7) - 1 = 6.
+    DateTime mondayOfWeek = DateTime(dateInThatWeek.year, dateInThatWeek.month, dateInThatWeek.day).subtract(Duration(days: daysToSubtract));
+    print('ExpenseService: getDailyExpensesForWeek - dateInThatWeek: $dateInThatWeek, mondayOfWeek: $mondayOfWeek');
+
+    for (var expense in allExpenses) {
+      final expenseDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
+      // Check if the expense date is within the calculated week (Monday to Sunday)
+      if (!expenseDate.isBefore(mondayOfWeek) && 
+          expenseDate.isBefore(mondayOfWeek.add(const Duration(days: 7)))) {
+        // Calculate which day of the week it is (0 for Monday, 1 for Tuesday, ..., 6 for Sunday)
+        int dayIndex = expenseDate.weekday - 1; 
+        if (dayIndex >= 0 && dayIndex < 7) { // Safety check
+          dailyTotals[dayIndex] += expense.amount;
+        }
+      }
+    }
+    print('ExpenseService: getDailyExpensesForWeek - dailyTotals (Mon-Sun): $dailyTotals');
+    return dailyTotals;
+  }
+
+  // New method for the main expense line chart
+  Future<List<FlSpot>> getDailyExpenseSpotsForMonth(DateTime month) async {
+    print('ExpenseService: getDailyExpenseSpotsForMonth called for $month. Internal _expenses count: ${_expenses.length}');
+    final List<FlSpot> spots = [];
+    final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    // double maxSpending = 0.0; // Not strictly needed if chart auto-scales Y
+
+    for (int i = 1; i <= daysInMonth; i++) {
+      final currentDate = DateTime(month.year, month.month, i);
+      double dailyTotal = 0.0;
+
+      for (var expense in _expenses) {
+        if (expense.date.year == currentDate.year &&
+            expense.date.month == currentDate.month &&
+            expense.date.day == currentDate.day) {
+          dailyTotal += expense.amount;
+        }
+      }
+      // if (dailyTotal > maxSpending) {
+      //   maxSpending = dailyTotal;
+      // }
+      // X-value: (day - 1) so that day 1 is x=0, day 2 is x=1, etc.
+      spots.add(FlSpot((i - 1).toDouble(), dailyTotal));
+    }
+    print('ExpenseService: getDailyExpenseSpotsForMonth for $month returning ${spots.length} spots.');
+    return spots;
   }
 } 
