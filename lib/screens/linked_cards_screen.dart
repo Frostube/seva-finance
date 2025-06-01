@@ -251,7 +251,7 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                           name: nameController.text,
                           balance: 0.0,
                           isPrimary: _wallets.isEmpty,
-                          createdAt: DateTime.now().toString().split(' ')[0],
+                          createdAt: DateTime.now(),
                           colorValue: const Color(0xFF1E1E1E).value,
                         );
                         await _walletService.addWallet(newWallet);

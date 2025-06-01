@@ -1,7 +1,19 @@
+import 'package:hive/hive.dart';
+
+part 'expense_category.g.dart';
+
+@HiveType(typeId: 2)
 class ExpenseCategory {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final String name;
+  
+  @HiveField(2)
   final String icon;
+  
+  @HiveField(3)
   final DateTime createdAt;
 
   ExpenseCategory({
@@ -22,7 +34,6 @@ class ExpenseCategory {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'name': name,
       'icon': icon,
       'createdAt': createdAt.toIso8601String(),

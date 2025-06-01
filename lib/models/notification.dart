@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import for Timestamp
 
 part 'notification.g.dart';
 
@@ -44,6 +45,36 @@ class AppNotification extends HiveObject {
     this.isRead = false,
     this.relatedId,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  factory AppNotification.fromJson(Map<String, dynamic> json) {
+    return AppNotification(
+      id: json['id'] as String,
+      type: NotificationType.values.firstWhere(
+        (e) => e.toString() == json['type'],
+        orElse: () => NotificationType.action, // Default type if parsing fails
+      ),
+      title: json['title'] as String,
+      message: json['message'] as String,
+      // Handle Firestore Timestamp or ISO8601 String for timestamp
+      timestamp: json['timestamp'] is Timestamp
+          ? (json['timestamp'] as Timestamp).toDate()
+          : DateTime.parse(json['timestamp'] as String),
+      isRead: json['isRead'] as bool? ?? false,
+      relatedId: json['relatedId'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type.toString(), // Store enum as string
+      'title': title,
+      'message': message,
+      'timestamp': Timestamp.fromDate(timestamp), // Convert DateTime to Firestore Timestamp
+      'isRead': isRead,
+      'relatedId': relatedId,
+    };
+  }
 
   factory AppNotification.fromAlert({
     required String alertId,

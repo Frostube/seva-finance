@@ -134,7 +134,7 @@ class _EditWalletScreenState extends State<EditWalletScreen> with SingleTickerPr
     );
     _selectedType = widget.wallet.type ?? 'Personal';
     _selectedColor = Color(widget.wallet.colorValue);
-    _selectedIcon = widget.wallet.icon ?? CupertinoIcons.money_dollar_circle_fill;
+    _selectedIcon = widget.wallet.icon;
     _isPrimary = widget.wallet.isPrimary;
     
     _animationController = AnimationController(

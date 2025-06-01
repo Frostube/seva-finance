@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'savings_goal.g.dart';
 
@@ -43,9 +44,23 @@ class SavingsGoal extends HiveObject {
     return DateTime.now().isAfter(targetDate);
   }
 
+  factory SavingsGoal.fromJson(Map<String, dynamic> json, String id) {
+    return SavingsGoal(
+      id: id,
+      walletId: json['walletId'] as String,
+      name: json['name'] as String?,
+      targetAmount: (json['targetAmount'] as num).toDouble(),
+      targetDate: json['targetDate'] is Timestamp
+          ? (json['targetDate'] as Timestamp).toDate()
+          : DateTime.parse(json['targetDate'] as String),
+      createdAt: json['createdAt'] is Timestamp
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(json['createdAt'] as String),
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'walletId': walletId,
       'name': name,
       'targetAmount': targetAmount,

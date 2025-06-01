@@ -11,7 +11,7 @@ class Expense {
   final double amount;
 
   @HiveField(2)
-  final String category;
+  final String categoryId;
 
   @HiveField(3)
   final DateTime date;
@@ -22,7 +22,7 @@ class Expense {
   const Expense({
     required this.id,
     required this.amount,
-    required this.category,
+    required this.categoryId,
     required this.date,
     this.note,
   });
@@ -32,7 +32,7 @@ class Expense {
     return Expense(
       id: json['id'] as String,
       amount: json['amount'] as double,
-      category: json['category'] as String,
+      categoryId: json['categoryId'] as String,
       date: DateTime.parse(json['date'] as String),
       note: json['note'] as String?,
     );
@@ -43,7 +43,7 @@ class Expense {
     return {
       'id': id,
       'amount': amount,
-      'category': category,
+      'categoryId': categoryId,
       'date': date.toIso8601String(),
       'note': note,
     };

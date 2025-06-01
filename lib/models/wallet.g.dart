@@ -21,11 +21,11 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       name: fields[1] as String,
       balance: fields[2] as double,
       isPrimary: fields[3] as bool,
-      createdAt: fields[4] as String,
+      createdAt: fields[4] as DateTime,
       colorValue: fields[5] as int,
       budget: fields[6] as double?,
       type: fields[7] as String?,
-    )..iconData = fields[8] as int?;
+    )..iconCodePoint = fields[8] as int?;
   }
 
   @override
@@ -49,7 +49,7 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       ..writeByte(7)
       ..write(obj.type)
       ..writeByte(8)
-      ..write(obj.iconData);
+      ..write(obj.iconCodePoint);
   }
 
   @override

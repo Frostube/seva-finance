@@ -3,11 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/savings_goal.dart';
-import '../services/savings_service.dart';
+import '../services/savings_goal_service.dart';
 
 class SetSavingsGoalSheet extends StatefulWidget {
   final String walletId;
-  final SavingsService savingsService;
+  final SavingsGoalService savingsService;
   final Function() onGoalAdded;
 
   const SetSavingsGoalSheet({
@@ -43,14 +43,15 @@ class _SetSavingsGoalSheetState extends State<SetSavingsGoalSheet> {
 
     try {
       final goal = SavingsGoal(
-        id: DateTime.now().toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         walletId: widget.walletId,
         name: _nameController.text,
         targetAmount: double.parse(_amountController.text.replaceAll(',', '')),
         targetDate: _targetDate,
+        createdAt: DateTime.now(),
       );
 
-      await widget.savingsService.addSavingsGoal(goal);
+      await widget.savingsService.addGoal(goal);
       if (mounted) {
         widget.onGoalAdded();
       }

@@ -33,14 +33,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with existing expense data if editing
     if (widget.initialExpense != null) {
       _amountController.text = NumberFormat.currency(symbol: '\$').format(widget.initialExpense!.amount);
-      _selectedCategory = widget.initialExpense!.category;
+      _selectedCategory = widget.initialExpense!.categoryId;
       _selectedDate = widget.initialExpense!.date;
       _noteController.text = widget.initialExpense!.note ?? '';
     } else {
-      // Initialize with currency format for new expense
       _formatAmount('0');
     }
   }
@@ -83,11 +81,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final newExpense = Expense(
       id: widget.initialExpense?.id ?? _uuid.v4(),
       amount: amount,
-      category: _selectedCategory,
+      categoryId: _selectedCategory,
       date: _selectedDate,
       note: _noteController.text.isEmpty ? null : _noteController.text,
     );
-    print('AddExpenseScreen: Expense object created. ID: ${newExpense.id}, Category: ${newExpense.category}, Amount: ${newExpense.amount}'); // LOG
+    print('AddExpenseScreen: Expense object created. ID: ${newExpense.id}, CategoryID: ${newExpense.categoryId}, Amount: ${newExpense.amount}'); // LOG
 
     try {
       if (widget.initialExpense != null) {

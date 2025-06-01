@@ -15,6 +15,7 @@ import 'models/wallet.dart';
 import 'models/savings_goal.dart';
 import 'models/spending_alert.dart';
 import 'models/notification.dart';
+import 'models/expense_category.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,7 +27,10 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'firebase_options.dart';
 import 'services/budget_service.dart';
 import 'services/savings_goal_service.dart';
-import 'services/savings_service.dart';
+import 'services/spending_alert_service.dart';
+import 'services/category_service.dart';
+import 'services/ocr_settings_service.dart';
+import 'models/ocr_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +54,10 @@ void main() async {
   Hive.registerAdapter(AlertTypeAdapter());
   Hive.registerAdapter(AppNotificationAdapter());
   Hive.registerAdapter(NotificationTypeAdapter());
+  Hive.registerAdapter(ExpenseCategoryAdapter());
+  Hive.registerAdapter(OcrSettingsAdapter());
+  Hive.registerAdapter(OcrModeAdapter());
+  Hive.registerAdapter(DateFallbackAdapter());
   
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
@@ -57,6 +65,8 @@ void main() async {
   await Hive.openBox<SavingsGoal>('savings_goals');
   await Hive.openBox<SpendingAlert>('spending_alerts');
   await Hive.openBox<AppNotification>('notifications');
+  await Hive.openBox<ExpenseCategory>('expense_categories');
+  await Hive.openBox<OcrSettings>('ocr_settings_box');
   
   runApp(const MyApp());
 }
@@ -121,35 +131,33 @@ class MyApp extends StatelessWidget {
           create: (_) => StorageService(),
         ),
         ChangeNotifierProvider(
-          create: (_) => NotificationService(
+          create: (context) => NotificationService(
             Hive.box<AppNotification>('notifications'),
-            Provider.of<FirebaseFirestore>(_, listen: false),
-            Provider.of<FirebaseMessaging>(_, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseMessaging>(context, listen: false),
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => WalletService(
+          create: (context) => WalletService(
             Hive.box<Wallet>('wallets'),
-            Provider.of<FirebaseFirestore>(_, listen: false),
-            Provider.of<FirebaseStorage>(_, listen: false),
-            Provider.of<NotificationService>(_, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseStorage>(context, listen: false),
+            Provider.of<NotificationService>(context, listen: false),
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => ExpenseService(
-            Provider.of<StorageService>(_, listen: false),
-            Hive.box<double>('budget'),
+          create: (context) => ExpenseService(
             Hive.box<Expense>('expenses'),
-            Provider.of<WalletService>(_, listen: false),
-            Provider.of<NotificationService>(_, listen: false),
-            Provider.of<FirebaseFirestore>(_, listen: false),
-            Provider.of<FirebaseStorage>(_, listen: false),
+            Provider.of<WalletService>(context, listen: false),
+            Provider.of<NotificationService>(context, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<CategoryService>(context, listen: false),
           ),
         ), 
-        Provider(
-          create: (_) => SavingsService(
-            Hive.box<SavingsGoal>('savings_goals'),
+        ChangeNotifierProvider<SpendingAlertService>(
+          create: (context) => SpendingAlertService(
             Hive.box<SpendingAlert>('spending_alerts'),
+            Provider.of<FirebaseFirestore>(context, listen: false),
           ),
         ),
         ChangeNotifierProvider(
@@ -157,17 +165,27 @@ class MyApp extends StatelessWidget {
             Hive.box<double>('budget'),
           ),
         ),
-        ChangeNotifierProvider(
-          create: (_) => SavingsGoalService(
+        ChangeNotifierProvider<SavingsGoalService>(
+          create: (context) => SavingsGoalService(
             Hive.box<SavingsGoal>('savings_goals'),
-            Provider.of<FirebaseFirestore>(_, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => AuthService(
-            Provider.of<FirebaseAuth>(_, listen: false),
-            Provider.of<FirebaseFirestore>(_, listen: false),
+          create: (context) => AuthService(
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => CategoryService(
+            Hive.box<ExpenseCategory>('expense_categories'),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Hive.box<Expense>('expenses'),
+          ),
+        ),
+        ChangeNotifierProvider<OcrSettingsService>(
+          create: (context) => OcrSettingsService(),
         ),
       ],
       child: MaterialApp(

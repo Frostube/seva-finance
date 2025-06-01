@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/payment_method.dart';
-import '../services/payment_method_service.dart';
-import '../screens/payment_methods_screen.dart';
+import '../models/wallet.dart';
+import '../services/wallet_service.dart';
+import '../screens/linked_cards_screen.dart';
 
 class WalletSwitcher extends StatefulWidget {
-  final PaymentMethod? selectedWallet;
-  final Function(PaymentMethod) onWalletSelected;
-  final PaymentMethodService paymentMethodService;
+  final Wallet? selectedWallet;
+  final Function(Wallet) onWalletSelected;
+  final WalletService walletService;
 
   const WalletSwitcher({
     Key? key,
     required this.selectedWallet,
     required this.onWalletSelected,
-    required this.paymentMethodService,
+    required this.walletService,
   }) : super(key: key);
 
   @override
@@ -27,6 +27,8 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
+        final allWallets = widget.walletService.wallets;
+
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -62,10 +64,10 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
               Expanded(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: widget.paymentMethodService.paymentMethods.length + 2,
+                  itemCount: allWallets.length + 2,
                   itemBuilder: (context, index) {
-                    if (index < widget.paymentMethodService.paymentMethods.length) {
-                      final wallet = widget.paymentMethodService.paymentMethods[index];
+                    if (index < allWallets.length) {
+                      final wallet = allWallets[index];
                       return ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(8),
@@ -74,10 +76,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            IconData(
-                              int.parse(wallet.icon ?? '0xf43a'),
-                              fontFamily: CupertinoIcons.iconFont,
-                            ),
+                            wallet.icon,
                             color: const Color(0xFF1B4332),
                           ),
                         ),
@@ -99,7 +98,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                           Navigator.pop(context);
                         },
                       );
-                    } else if (index == widget.paymentMethodService.paymentMethods.length) {
+                    } else if (index == allWallets.length) {
                       return const Divider(height: 1);
                     } else {
                       return Column(
@@ -129,9 +128,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PaymentMethodsScreen(
-                                    paymentMethodService: widget.paymentMethodService,
-                                  ),
+                                  builder: (context) => const LinkedCardsScreen(),
                                 ),
                               );
                             },
@@ -160,9 +157,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PaymentMethodsScreen(
-                                    paymentMethodService: widget.paymentMethodService,
-                                  ),
+                                  builder: (context) => const LinkedCardsScreen(),
                                 ),
                               );
                             },
@@ -195,10 +190,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
           children: [
             if (widget.selectedWallet != null) ...[
               Icon(
-                IconData(
-                  int.parse(widget.selectedWallet!.icon ?? '0xf43a'),
-                  fontFamily: CupertinoIcons.iconFont,
-                ),
+                widget.selectedWallet!.icon,
                 color: const Color(0xFF1B4332),
                 size: 16,
               ),
@@ -213,13 +205,13 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
               ),
             ] else ...[
               const Icon(
-                CupertinoIcons.plus,
+                CupertinoIcons.question_circle,
                 color: Color(0xFF1B4332),
                 size: 16,
               ),
               const SizedBox(width: 8),
               Text(
-                'Create Wallet',
+                'Select Wallet',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -230,7 +222,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
             const SizedBox(width: 4),
             const Icon(
               CupertinoIcons.chevron_down,
-              color: Color(0xFF1B4332),
+              color: const Color(0xFF1B4332),
               size: 14,
             ),
           ],

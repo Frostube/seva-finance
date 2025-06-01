@@ -4,7 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/savings_goal.dart';
 import '../models/spending_alert.dart';
-import '../services/savings_service.dart';
+import '../services/spending_alert_service.dart';
+import '../services/savings_goal_service.dart';
 import 'set_savings_goal_sheet.dart';
 import 'set_spending_alert_sheet.dart';
 import 'package:provider/provider.dart';
@@ -12,12 +13,14 @@ import '../services/wallet_service.dart';
 
 class GoalsAndAlertsScreen extends StatefulWidget {
   final String walletId;
-  final SavingsService savingsService;
+  final SpendingAlertService spendingAlertService;
+  final SavingsGoalService savingsGoalService;
 
   const GoalsAndAlertsScreen({
     super.key,
     required this.walletId,
-    required this.savingsService,
+    required this.spendingAlertService,
+    required this.savingsGoalService,
   });
 
   @override
@@ -36,8 +39,8 @@ class _GoalsAndAlertsScreenState extends State<GoalsAndAlertsScreen> {
 
   void _loadData() {
     setState(() {
-      _goals = widget.savingsService.getSavingsGoals(widget.walletId);
-      _alerts = widget.savingsService.getSpendingAlerts(widget.walletId);
+      _goals = widget.savingsGoalService.goals.where((goal) => goal.walletId == widget.walletId).toList();
+      _alerts = widget.spendingAlertService.alerts.where((alert) => alert.walletId == widget.walletId).toList();
     });
   }
 
@@ -48,7 +51,7 @@ class _GoalsAndAlertsScreenState extends State<GoalsAndAlertsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => SetSavingsGoalSheet(
         walletId: widget.walletId,
-        savingsService: widget.savingsService,
+        savingsService: widget.savingsGoalService,
         onGoalAdded: _loadData,
       ),
     );
@@ -61,19 +64,19 @@ class _GoalsAndAlertsScreenState extends State<GoalsAndAlertsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => SetSpendingAlertSheet(
         walletId: widget.walletId,
-        savingsService: widget.savingsService,
+        savingsService: widget.spendingAlertService,
         onAlertAdded: _loadData,
       ),
     );
   }
 
   Future<void> _deleteGoal(String goalId) async {
-    await widget.savingsService.deleteSavingsGoal(goalId);
+    await widget.savingsGoalService.deleteGoal(goalId);
     _loadData();
   }
 
   Future<void> _deleteAlert(String alertId) async {
-    await widget.savingsService.deleteSpendingAlert(alertId);
+    await widget.spendingAlertService.deleteSpendingAlert(alertId);
     _loadData();
   }
 

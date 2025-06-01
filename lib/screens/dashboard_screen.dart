@@ -6,7 +6,7 @@ import '../theme/colors.dart';
 import 'linked_cards_screen.dart';
 import 'notifications_screen.dart';
 import '../services/wallet_service.dart';
-import '../services/savings_service.dart';
+import '../services/spending_alert_service.dart';
 import '../models/wallet.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
@@ -25,6 +25,8 @@ import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../services/auth_service.dart';
+import '../services/category_service.dart';
+import '../services/savings_goal_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,28 +38,67 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late WalletService _walletService;
   late ExpenseService _expenseService;
+  late CategoryService _categoryService;
   List<Wallet> _wallets = [];
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
+  bool _isScreenLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _walletService = Provider.of<WalletService>(context, listen: false);
-    _expenseService = ExpenseService(
-      Provider.of<StorageService>(context, listen: false),
-      Hive.box<double>('budget'),
-      Hive.box<Expense>('expenses'),
-      _walletService,
-      Provider.of<NotificationService>(context, listen: false),
-      Provider.of<FirebaseFirestore>(context, listen: false),
-      Provider.of<FirebaseStorage>(context, listen: false),
-    );
-    _loadWallets();
+    _initializeAsyncDependencies();
     
     // Listen for wallet changes
     _walletBoxSubscription = Hive.box<Wallet>('wallets').watch().listen((event) {
       _loadWallets();
     });
+  }
+
+  Future<void> _initializeAsyncDependencies() async {
+    print('DashboardScreen: _initializeAsyncDependencies START');
+    _walletService = Provider.of<WalletService>(context, listen: false);
+    _categoryService = Provider.of<CategoryService>(context, listen: false);
+
+    if (_walletService.initializationComplete != null) {
+      print('DashboardScreen: Awaiting WalletService initialization...');
+      await _walletService.initializationComplete;
+      print('DashboardScreen: WalletService initialization COMPLETE');
+    } else {
+      print('DashboardScreen: WalletService.initializationComplete is null');
+    }
+
+    if (_categoryService.initializationComplete != null) {
+      print('DashboardScreen: Awaiting CategoryService initialization...');
+      await _categoryService.initializationComplete;
+      print('DashboardScreen: CategoryService initialization COMPLETE');
+    } else {
+      print('DashboardScreen: CategoryService.initializationComplete is null');
+    }
+
+    _expenseService = ExpenseService(
+      Hive.box<Expense>('expenses'),
+      _walletService,
+      Provider.of<NotificationService>(context, listen: false),
+      Provider.of<FirebaseFirestore>(context, listen: false),
+      _categoryService,
+    );
+
+    if (_expenseService.initializationComplete != null) {
+      print('DashboardScreen: Awaiting ExpenseService initialization...');
+      await _expenseService.initializationComplete;
+      print('DashboardScreen: ExpenseService initialization COMPLETE');
+    } else {
+      print('DashboardScreen: ExpenseService.initializationComplete is null');
+    }
+
+    _loadWallets();
+
+    if (mounted) {
+      setState(() {
+        _isScreenLoading = false;
+      });
+    }
+    print('DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: \$_isScreenLoading');
   }
 
   @override
@@ -200,7 +241,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext bottomSheetContext) => SetSavingsGoalSheet(
         walletId: wallet.id,
-        savingsService: Provider.of<SavingsService>(context, listen: false),
+        savingsService: Provider.of<SavingsGoalService>(context, listen: false),
         onGoalAdded: () {
           // First close the bottom sheet
           Navigator.pop(bottomSheetContext);
@@ -229,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext bottomSheetContext) => SetSpendingAlertSheet(
         walletId: wallet.id,
-        savingsService: Provider.of<SavingsService>(context, listen: false),
+        savingsService: Provider.of<SpendingAlertService>(context, listen: false),
         onAlertAdded: () {
           // First close the bottom sheet
           Navigator.pop(bottomSheetContext);
@@ -257,7 +298,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(
         builder: (context) => GoalsAndAlertsScreen(
           walletId: wallet.id,
-          savingsService: Provider.of<SavingsService>(context, listen: false),
+          spendingAlertService: Provider.of<SpendingAlertService>(context, listen: false),
+          savingsGoalService: Provider.of<SavingsGoalService>(context, listen: false),
         ),
       ),
     );
@@ -309,6 +351,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('DashboardScreen: build called, _isScreenLoading: \$_isScreenLoading'); 
+    if (_isScreenLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white, 
+        body: Center(child: CircularProgressIndicator(color: AppTheme.darkGreen)), 
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

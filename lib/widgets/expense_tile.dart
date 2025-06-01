@@ -3,6 +3,8 @@ import 'package:seva_finance/models/expense.dart';
 import 'package:seva_finance/theme/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import '../services/category_service.dart';
 
 class ExpenseTile extends StatelessWidget {
   final Expense expense;
@@ -39,6 +41,8 @@ class ExpenseTile extends StatelessWidget {
       symbol: '\$',
       decimalDigits: expense.amount.truncateToDouble() == expense.amount ? 0 : 2,
     );
+    final categoryService = Provider.of<CategoryService>(context, listen: false);
+    final categoryName = categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -50,12 +54,12 @@ class ExpenseTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
-          _getCategoryIcon(expense.category),
+          _getCategoryIcon(categoryName),
           color: AppColors.primary,
         ),
       ),
       title: Text(
-        expense.category,
+        categoryName,
         style: const TextStyle(
           fontWeight: FontWeight.w500,
         ),

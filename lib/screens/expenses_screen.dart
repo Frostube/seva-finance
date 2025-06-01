@@ -20,6 +20,8 @@ import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../services/category_service.dart';
+import 'ocr_screen.dart'; // Added for OCR screen navigation
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -39,6 +41,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   late ExpenseService _expenseService;
   late WalletService _walletService;
+  late CategoryService _categoryService;
   double? _monthlyBudget;
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
 
@@ -62,6 +65,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<String> _sixMonthChartLabels = [];
   bool _isSixMonthChartLoading = true;
   double _maxSixMonthSpending = 0.0; // For Y-axis scaling
+  bool _isScreenInitialized = false; // Added for screen-level initialization
 
   final Map<String, IconData> _categoryIcons = {
     'Rent': CupertinoIcons.house_fill,
@@ -89,18 +93,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   // New async method for initialization
   Future<void> _initializeAsyncDependencies() async {
     print('ExpensesScreen: _initializeAsyncDependencies START');
+    
+    // Fetch WalletService first and await its initialization
+    _walletService = Provider.of<WalletService>(context, listen: false);
+    if (_walletService.initializationComplete != null) {
+      print('ExpensesScreen: Awaiting WalletService initialization...');
+      await _walletService.initializationComplete;
+      print('ExpensesScreen: WalletService initialization COMPLETE');
+    } else {
+      print('ExpensesScreen: WalletService.initializationComplete is null, proceeding cautiously.');
+    }
+
+    _categoryService = Provider.of<CategoryService>(context, listen: false); // Initialize CategoryService
+    if (_categoryService.initializationComplete != null) {
+      print('ExpensesScreen: Awaiting CategoryService initialization...');
+      await _categoryService.initializationComplete;
+      print('ExpensesScreen: CategoryService initialization COMPLETE');
+    }
+
     _expenseService = ExpenseService(
-      Provider.of<StorageService>(context, listen: false),
-      Hive.box<double>('budget'),
       Hive.box<Expense>('expenses'),
       Provider.of<WalletService>(context, listen: false),
       Provider.of<NotificationService>(context, listen: false),
       Provider.of<FirebaseFirestore>(context, listen: false),
-      Provider.of<FirebaseStorage>(context, listen: false),
+      _categoryService, // Pass the initialized CategoryService instance
     );
-    _walletService = Provider.of<WalletService>(context, listen: false);
 
-    // Wait for ExpenseService to finish its initial loading
     if (_expenseService.initializationComplete != null) {
       print('ExpensesScreen: Awaiting ExpenseService initialization...');
       await _expenseService.initializationComplete;
@@ -117,7 +135,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     await _loadMySpendingData(); // Load data for "My Spending" card
     if (!mounted) return; 
     await _loadSixMonthChartData(); // Load 6-month overview chart data
-    print('ExpensesScreen: _initializeAsyncDependencies END');
+
+    if (mounted) {
+      setState(() {
+        _isScreenInitialized = true;
+      });
+    }
+    print('ExpensesScreen: _initializeAsyncDependencies END, _isScreenInitialized: \$_isScreenInitialized');
   }
 
   @override
@@ -165,7 +189,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   name: 'New Wallet',
                   balance: 0.0,
                   isPrimary: true, // First wallet is primary
-                  createdAt: DateTime.now().toString().split(' ')[0],
+                  createdAt: DateTime.now(),
                   colorValue: const Color(0xFF1E1E1E).value,
                 );
                 _walletService.addWallet(newWallet).then((_) {
@@ -699,6 +723,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Widget _buildExpensePreviewItem(Expense expense) {
     final formatter = NumberFormat.currency(symbol: '\$');
+    final categoryName = _categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
+    final categoryIcon = _categoryIcons[categoryName] ?? _categoryIcons['Other'] ?? CupertinoIcons.square_grid_2x2;
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -724,7 +751,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _categoryIcons[expense.category] ?? CupertinoIcons.square_grid_2x2,
+                categoryIcon,
                 color: const Color(0xFF1B4332),
                 size: 20,
               ),
@@ -735,7 +762,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    expense.category,
+                    categoryName,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -777,142 +804,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildExpensePreviewSection(String title, List<Expense> expenses) {
-    if (expenses.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[600],
-          ),
-        ),
-        ...expenses.take(2).map((expense) => _buildExpensePreviewItem(expense)),
-      ],
-    );
-  }
-
-  Widget _buildRecentExpensesPreview() {
-    return FutureBuilder<Map<String, List<Expense>>>(
-      future: _groupExpensesByTimeline(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final groupedExpenses = snapshot.data ?? {
-          'Today': [],
-          'This Week': [],
-          'Earlier': [],
-        };
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Recent Expenses',
-                    style: GoogleFonts.inter(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecentExpensesScreen(
-                            expenseService: _expenseService,
-                          ),
-                        ),
-                      ).then((_) => _refreshScreen());
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View All',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1B4332),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          CupertinoIcons.arrow_right_circle,
-                          size: 16,
-                          color: Color(0xFF1B4332),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (groupedExpenses.values.every((list) => list.isEmpty))
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Text(
-                      'No expenses for this month',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                )
-              else ...[
-                _buildExpensePreviewSection('Today', groupedExpenses['Today']!),
-                if (groupedExpenses['Today']!.isNotEmpty)
-                  const Divider(height: 32),
-                _buildExpensePreviewSection('This Week', groupedExpenses['This Week']!),
-                if (groupedExpenses['This Week']!.isNotEmpty)
-                  const Divider(height: 32),
-                _buildExpensePreviewSection('Earlier', groupedExpenses['Earlier']!),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    print('ExpensesScreen: build called, selectedMonth: $_selectedMonth, refreshCounter: $_refreshCounter');
+    print('ExpensesScreen: build called, selectedMonth: $_selectedMonth, refreshCounter: $_refreshCounter, _isScreenInitialized: $_isScreenInitialized');
+
+    if (!_isScreenInitialized) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8F9FA),
+        body: Center(child: CupertinoActivityIndicator(radius: 16.0)),
+      );
+    }
+
     final formatter = NumberFormat.currency(symbol: '\$');
     final isCurrentMonth = _isCurrentMonth();
 
@@ -1614,7 +1516,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               )
                             else
                               ...categorySummaries.map((summary) {
-                                return _buildCategoryListItem(summary.categoryName, summary.totalAmount);
+                                return _buildCategoryListItem(summary.categoryId, summary.categoryName, summary.totalAmount);
                               }).toList(),
                           ],
                         ),
@@ -1653,7 +1555,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         child: FloatingActionButton.extended(
           heroTag: 'scan_receipt',
           onPressed: () {
-            // TODO: Implement scan receipt functionality
+            // Navigate to OcrScreen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const OcrScreen()),
+            );
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -1678,17 +1584,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   // Helper method for category list item (NEW - add this at the end of the class or in a helpers file)
-  Widget _buildCategoryListItem(String categoryName, double amount) {
+  Widget _buildCategoryListItem(String categoryId, String categoryName, double amount) {
+    final categoryIcon = _categoryIcons[categoryName] ?? _categoryIcons['Other'] ?? CupertinoIcons.square_grid_2x2;
+
     return InkWell(
       onTap: () async {
-        // Fetch all expenses for the selected month
         final List<Expense> expensesForMonth = await _expenseService.getExpensesForMonth(_selectedMonth);
-        
-        // Filter for the specific category
-        final List<Expense> categorySpecificExpenses = expensesForMonth.where((expense) => expense.category == categoryName).toList();
+        final List<Expense> categorySpecificExpenses = expensesForMonth.where((expense) => expense.categoryId == categoryId).toList();
 
         if (categorySpecificExpenses.length == 1) {
-          // If exactly one expense, navigate directly to TransactionDetailScreen
           if (!mounted) return;
           await Navigator.push(
             context,
@@ -1700,21 +1604,20 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
             ),
           );
-          _refreshScreen(); // Refresh after editing
+          _refreshScreen();
         } else {
-          // Otherwise, navigate to RecentExpensesScreen (for 0 or multiple items)
           if (!mounted) return;
           await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => RecentExpensesScreen(
                 expenseService: _expenseService,
-                categoryForMonthFilter: categoryName,
+                categoryForMonthFilter: categoryId,
                 monthForCategoryFilter: _selectedMonth,
               ),
             ),
           );
-          _refreshScreen(); // Refresh after potential changes in RecentExpensesScreen
+          _refreshScreen();
         }
       },
       child: Container(
@@ -1722,14 +1625,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Color(0xFF007A3D),
-                shape: BoxShape.circle,
-              ),
-            ),
+            Icon(categoryIcon, size: 18, color: const Color(0xFF007A3D)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

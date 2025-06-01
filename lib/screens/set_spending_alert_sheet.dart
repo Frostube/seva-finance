@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/spending_alert.dart';
-import '../services/savings_service.dart';
+import '../services/spending_alert_service.dart';
 
 class SetSpendingAlertSheet extends StatefulWidget {
   final String walletId;
-  final SavingsService savingsService;
+  final SpendingAlertService savingsService;
   final Function() onAlertAdded;
 
   const SetSpendingAlertSheet({
@@ -40,10 +40,11 @@ class _SetSpendingAlertSheetState extends State<SetSpendingAlertSheet> {
 
     try {
       final alert = SpendingAlert(
-        id: DateTime.now().toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         walletId: widget.walletId,
         type: _selectedType,
         threshold: double.parse(_thresholdController.text.replaceAll(',', '')),
+        createdAt: DateTime.now(),
       );
 
       await widget.savingsService.addSpendingAlert(alert);

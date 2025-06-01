@@ -12,6 +12,7 @@ import '../services/wallet_service.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../services/category_service.dart';
 
 class RecentExpensesScreen extends StatefulWidget {
   final ExpenseService expenseService;
@@ -31,6 +32,7 @@ class RecentExpensesScreen extends StatefulWidget {
 
 class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
   late final ExpenseService _expenseService;
+  late final CategoryService _categoryService;
   List<Expense> _expenses = [];
   List<Expense> _filteredExpenses = [];
   String _searchQuery = '';
@@ -39,16 +41,31 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeAsyncDependencies();
+  }
+
+  Future<void> _initializeAsyncDependencies() async {
+    _categoryService = Provider.of<CategoryService>(context, listen: false);
+    if (_categoryService.initializationComplete != null) {
+      print('RecentExpensesScreen: Awaiting CategoryService initialization...');
+      await _categoryService.initializationComplete;
+      print('RecentExpensesScreen: CategoryService initialization COMPLETE');
+    }
+
     _expenseService = ExpenseService(
-      Provider.of<StorageService>(context, listen: false),
-      Hive.box<double>('budget'),
       Hive.box<Expense>('expenses'),
       Provider.of<WalletService>(context, listen: false),
       Provider.of<NotificationService>(context, listen: false),
       Provider.of<FirebaseFirestore>(context, listen: false),
-      Provider.of<FirebaseStorage>(context, listen: false),
+      _categoryService,
     );
-    _loadExpenses();
+
+    if (_expenseService.initializationComplete != null) {
+      print('RecentExpensesScreen: Awaiting ExpenseService initialization...');
+      await _expenseService.initializationComplete;
+      print('RecentExpensesScreen: ExpenseService initialization COMPLETE');
+    }
+    await _loadExpenses();
   }
 
   Future<void> _loadExpenses() async {
@@ -64,20 +81,20 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
       _filteredExpenses = _expenses.where((expense) {
         // Category and Month filter (if provided)
         if (widget.categoryForMonthFilter != null && widget.monthForCategoryFilter != null) {
-          bool matchesCategoryAndMonth = expense.category == widget.categoryForMonthFilter &&
+          bool matchesCategoryAndMonth = expense.categoryId == widget.categoryForMonthFilter &&
               expense.date.year == widget.monthForCategoryFilter!.year &&
               expense.date.month == widget.monthForCategoryFilter!.month;
           if (!matchesCategoryAndMonth) return false;
         }
 
-        // Search in category, note, and amount
+        // Search in categoryId, note, and amount
         final matchesSearch = _searchQuery.isEmpty || 
-            expense.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            expense.categoryId.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             (expense.note?.toLowerCase() ?? '').contains(_searchQuery.toLowerCase()) ||
             expense.amount.toString().contains(_searchQuery);
             
         // Category filter
-        final matchesCategory = _selectedCategory == 'All' || expense.category == _selectedCategory;
+        final matchesCategory = _selectedCategory == 'All' || expense.categoryId == _selectedCategory;
         
         return matchesSearch && matchesCategory;
       }).toList();
@@ -119,6 +136,9 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
 
   Widget _buildExpenseItem(Expense expense) {
     final formatter = NumberFormat.currency(symbol: '\$');
+    final categoryNameToDisplay = _categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId); 
+    final iconData = _getCategoryIcon(categoryNameToDisplay);
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -152,7 +172,7 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _getCategoryIcon(expense.category),
+                iconData,
                 color: const Color(0xFF1B4332),
                 size: 20,
               ),
@@ -163,7 +183,7 @@ class _RecentExpensesScreenState extends State<RecentExpensesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    expense.category,
+                    categoryNameToDisplay,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

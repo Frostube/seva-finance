@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/wallet.dart';
-import 'package:flutter/foundation.dart';
 import 'notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -16,182 +15,178 @@ class WalletService with ChangeNotifier {
   List<Wallet> _wallets = [];
   bool _isLoading = false;
   final NotificationService _notificationService;
+  Future<void>? _initialLoadFuture;
 
   WalletService(this._localBox, this._firestore, this._storage, this._notificationService) {
-    _loadWallets();
+    _initialLoadFuture = _loadWallets();
   }
 
   List<Wallet> get wallets => _wallets;
   bool get isLoading => _isLoading;
+  Future<void>? get initializationComplete => _initialLoadFuture;
+
+  String? get _userId => _auth.currentUser?.uid;
 
   Future<void> _loadWallets() async {
+    if (_isLoading) return;
     _isLoading = true;
-    notifyListeners();
+
+    final String? currentUserId = _userId;
+    if (currentUserId == null) {
+      debugPrint('WalletService: User not authenticated. Loading from local cache only.');
+      _wallets = _localBox.values.toList();
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
 
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        throw Exception('User not authenticated');
-      }
-
-      // Load from local storage first
-      _wallets = _localBox.values.toList();
-
-      // Then sync with Firestore
-      final snapshot = await _firestore.collection('wallets')
-          .where('userId', isEqualTo: userId)
+      debugPrint('WalletService: User $currentUserId authenticated. Syncing wallets.');
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
           .get();
+      debugPrint('WalletService: Fetched ${snapshot.docs.length} wallets from Firestore for user $currentUserId.');
+      
       final remoteWallets = snapshot.docs.map((doc) {
         final data = doc.data();
-        return Wallet(
-          id: doc.id,
-          name: data['name'] as String,
-          balance: data['balance'] as double,
-          isPrimary: data['isPrimary'] as bool,
-          createdAt: data['createdAt'] as String,
-          colorValue: data['colorValue'] as int,
-          budget: data['budget'] as double?,
-          type: data['type'] as String?,
-          icon: IconData(
-            data['iconData'] as int? ?? Wallet.defaultIcon.codePoint,
-            fontFamily: Wallet.defaultIcon.fontFamily,
-            fontPackage: Wallet.defaultIcon.fontPackage,
-          ),
-        );
+        return Wallet.fromJson({
+          ...data,
+          'id': doc.id
+        });
       }).toList();
 
-      // Merge local and remote wallets
+      Map<String, Wallet> localWalletsMap = { for (var w in _localBox.values) w.id : w };
+      Set<String> remoteWalletIds = {};
+
       for (final remoteWallet in remoteWallets) {
-        final localIndex = _wallets.indexWhere((w) => w.id == remoteWallet.id);
-        if (localIndex >= 0) {
-          _wallets[localIndex] = remoteWallet;
-        } else {
-          _wallets.add(remoteWallet);
-        }
+        remoteWalletIds.add(remoteWallet.id);
+        await _localBox.put(remoteWallet.id, remoteWallet);
+        localWalletsMap[remoteWallet.id] = remoteWallet;
       }
 
-      // Save merged wallets to local storage
-      await _localBox.clear();
-      for (final wallet in _wallets) {
-        await _localBox.put(wallet.id, wallet);
+      List<String> walletsToDeleteLocally = [];
+      for (final localWalletId in localWalletsMap.keys) {
+        if (!remoteWalletIds.contains(localWalletId)) {
+          walletsToDeleteLocally.add(localWalletId);
+        }
       }
+      for (final walletIdToDelete in walletsToDeleteLocally) {
+        await _localBox.delete(walletIdToDelete);
+        localWalletsMap.remove(walletIdToDelete);
+        debugPrint('WalletService: Deleted wallet $walletIdToDelete from local cache.');
+      }
+      
+      _wallets = localWalletsMap.values.toList();
+      debugPrint('WalletService: Synced ${_wallets.length} wallets.');
+
     } catch (e) {
-      debugPrint('Error loading wallets: $e');
+      debugPrint('Error syncing wallets with Firestore: $e. Using local cache as fallback.');
+      _wallets = _localBox.values.toList();
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // Get all wallets
   List<Wallet> getAllWallets() {
-    return _wallets;
+    return List.from(_wallets);
   }
 
-  // Get primary wallet
   Wallet? getPrimaryWallet() {
-    if (_wallets.isEmpty) {
-      return null;
-    }
+    if (_wallets.isEmpty) return null;
     try {
-      return _wallets.firstWhere(
-        (w) => w.isPrimary,
-        orElse: () => _wallets.first,
-      );
+      return _wallets.firstWhere((w) => w.isPrimary, orElse: () => _wallets.first);
     } catch (e) {
-      return _wallets.first;
+      return _wallets.isNotEmpty ? _wallets.first : null;
     }
   }
 
-  // Set primary wallet
-  Future<void> setPrimaryWallet(String walletId) async {
+  Future<void> setPrimaryWallet(String walletIdToSetAsPrimary) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) {
+      debugPrint("WalletService: User not logged in. Cannot set primary wallet.");
+      return;
+    }
     if (_wallets.isEmpty) return;
 
-    try {
-      _isLoading = true;
-      notifyListeners();
+    _isLoading = true;
+    notifyListeners();
 
-      // Update all wallets to non-primary
+    try {
+      WriteBatch batch = _firestore.batch();
+
       for (final wallet in _wallets) {
-        if (wallet.isPrimary) {
-          wallet.isPrimary = false;
-          await _firestore.collection('wallets').doc(wallet.id).update({
-            'isPrimary': false,
-          });
-          await _localBox.put(wallet.id, wallet);
+        if (wallet.isPrimary && wallet.id != walletIdToSetAsPrimary) {
+          final walletRef = _firestore
+              .collection('users')
+              .doc(currentUserId)
+              .collection('wallets')
+              .doc(wallet.id);
+          batch.update(walletRef, {'isPrimary': false});
+          
+          final updatedLocalWallet = wallet.copyWith(isPrimary: false);
+          await _localBox.put(wallet.id, updatedLocalWallet);
         }
       }
 
-      // Set new primary
-      final newPrimary = _wallets.firstWhere((w) => w.id == walletId);
-      newPrimary.isPrimary = true;
-      await _firestore.collection('wallets').doc(walletId).update({
-        'isPrimary': true,
-      });
-      await _localBox.put(walletId, newPrimary);
+      final primaryWalletRef = _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
+          .doc(walletIdToSetAsPrimary);
+      batch.update(primaryWalletRef, {'isPrimary': true});
+      await batch.commit();
 
-      _isLoading = false;
-      notifyListeners();
-
+      _wallets = _wallets.map((wallet) {
+        final bool isNowPrimary = wallet.id == walletIdToSetAsPrimary;
+        if (wallet.isPrimary != isNowPrimary) {
+          final updatedWallet = wallet.copyWith(isPrimary: isNowPrimary);
+          _localBox.put(updatedWallet.id, updatedWallet);
+          return updatedWallet;
+        }
+        return wallet;
+      }).toList();
+      
+      final newPrimary = _wallets.firstWhere((w) => w.id == walletIdToSetAsPrimary);
       _notificationService.addActionNotification(
         title: 'Primary Wallet Changed',
         message: '${newPrimary.name} is now your primary wallet',
-        relatedId: walletId,
+        relatedId: newPrimary.id,
       );
+
     } catch (e) {
+      debugPrint("Error setting primary wallet: $e");
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Add new wallet
   Future<void> addWallet(Wallet wallet) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      _isLoading = true;
-      notifyListeners();
-      debugPrint('WalletService: Adding new wallet - ID: ${wallet.id}, Name: ${wallet.name}, Balance: ${wallet.balance}');
+      final walletRef = _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
+          .doc(wallet.id);
+      
+      Map<String, dynamic> walletData = wallet.toJson();
+      walletData.remove('userId'); 
 
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        throw Exception('User not authenticated');
-      }
+      await walletRef.set(walletData);
+      debugPrint('WalletService: Wallet added to Firestore for user $currentUserId with ID: ${wallet.id}');
 
-      // Add to Firestore
-      final docRef = await _firestore.collection('wallets').add({
-        'name': wallet.name,
-        'balance': wallet.balance,
-        'isPrimary': wallet.isPrimary,
-        'createdAt': wallet.createdAt,
-        'colorValue': wallet.colorValue,
-        'budget': wallet.budget,
-        'type': wallet.type,
-        'iconData': wallet.iconData,
-        'userId': userId,
-      });
-      debugPrint('WalletService: Wallet added to Firestore with ID: ${docRef.id}');
-
-      // Update wallet with Firestore ID
-      final updatedWallet = Wallet(
-        id: docRef.id,
-        name: wallet.name,
-        balance: wallet.balance,
-        isPrimary: wallet.isPrimary,
-        createdAt: wallet.createdAt,
-        colorValue: wallet.colorValue,
-        budget: wallet.budget,
-        type: wallet.type,
-        icon: wallet.icon,
-      );
-
-      // Save to local storage
-      await _localBox.put(updatedWallet.id, updatedWallet);
-      _wallets.add(updatedWallet);
-      debugPrint('WalletService: Wallet saved to local storage and added to wallets list');
-
-      _isLoading = false;
-      notifyListeners();
-
+      await _localBox.put(wallet.id, wallet);
+      _wallets.add(wallet);
+      
       _notificationService.addActionNotification(
         title: 'New Wallet Created',
         message: '${wallet.name} has been added to your wallets',
@@ -199,52 +194,37 @@ class WalletService with ChangeNotifier {
       );
     } catch (e) {
       debugPrint('WalletService: Error adding wallet: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Update wallet
   Future<void> updateWallet(Wallet wallet) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      _isLoading = true;
-      notifyListeners();
-      debugPrint('WalletService: Updating wallet - ID: ${wallet.id}, Name: ${wallet.name}, Balance: ${wallet.balance}');
+      Map<String, dynamic> walletData = wallet.toJson();
+      walletData.remove('userId');
 
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        throw Exception('User not authenticated');
-      }
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
+          .doc(wallet.id)
+          .update(walletData);
+      debugPrint('WalletService: Wallet updated in Firestore for user $currentUserId');
 
-      // Update in Firestore
-      debugPrint('WalletService: Attempting to update wallet in Firestore...');
-      await _firestore.collection('wallets').doc(wallet.id).update({
-        'name': wallet.name,
-        'balance': wallet.balance,
-        'isPrimary': wallet.isPrimary,
-        'createdAt': wallet.createdAt,
-        'colorValue': wallet.colorValue,
-        'budget': wallet.budget,
-        'type': wallet.type,
-        'iconData': wallet.iconData,
-        'userId': userId,
-      });
-      debugPrint('WalletService: Wallet updated in Firestore successfully');
-
-      // Update in local storage
       await _localBox.put(wallet.id, wallet);
       final index = _wallets.indexWhere((w) => w.id == wallet.id);
-      if (index >= 0) {
+      if (index != -1) {
         _wallets[index] = wallet;
-        debugPrint('WalletService: Wallet updated in local storage and wallets list');
-      } else {
-        debugPrint('WalletService: Warning - Wallet not found in wallets list for update');
       }
-
-      _isLoading = false;
-      notifyListeners();
-
+      
       _notificationService.addActionNotification(
         title: 'Wallet Updated',
         message: '${wallet.name} has been updated',
@@ -252,97 +232,102 @@ class WalletService with ChangeNotifier {
       );
     } catch (e) {
       debugPrint('WalletService: Error updating wallet: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Delete wallet
   Future<void> deleteWallet(String walletId) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      _isLoading = true;
-      notifyListeners();
+      final Wallet walletToDelete = _wallets.firstWhere((w) => w.id == walletId, orElse: () => Wallet.empty);
+      String deletedWalletName = walletToDelete.name;
 
-      // Delete from Firestore
-      await _firestore.collection('wallets').doc(walletId).delete();
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
+          .doc(walletId)
+          .delete();
 
-      // Delete from local storage
       await _localBox.delete(walletId);
       _wallets.removeWhere((w) => w.id == walletId);
 
-      // If we deleted the primary wallet, make another one primary
-      final remainingWallets = getAllWallets();
-      if (remainingWallets.isNotEmpty) {
-        final newPrimary = remainingWallets.first;
-        newPrimary.isPrimary = true;
-        await updateWallet(newPrimary);
+      if (walletToDelete.isPrimary && _wallets.isNotEmpty) {
+        await setPrimaryWallet(_wallets.first.id);
       }
-
-      _isLoading = false;
-      notifyListeners();
-
+      
       _notificationService.addActionNotification(
         title: 'Wallet Deleted',
-        message: '${_localBox.get(walletId)?.name} has been removed',
+        message: '$deletedWalletName has been removed',
       );
     } catch (e) {
+      debugPrint('WalletService: Error deleting wallet: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Get wallet budget
   double getWalletBudget(String walletId) {
-    final wallet = _wallets.firstWhere((w) => w.id == walletId);
+    final wallet = _wallets.firstWhere((w) => w.id == walletId, orElse: () => Wallet.empty);
     return wallet.budget ?? 0.0;
   }
 
-  // Set wallet budget
   Future<void> setWalletBudget(String walletId, double budget) async {
-    final wallet = _wallets.firstWhere((w) => w.id == walletId);
-    wallet.budget = budget;
-    await updateWallet(wallet);
+    final index = _wallets.indexWhere((w) => w.id == walletId);
+    if (index != -1) {
+      final updatedWallet = _wallets[index].copyWith(budget: budget);
+      await updateWallet(updatedWallet);
     }
+  }
 
-  // Set wallet balance
   Future<void> setWalletBalance(String walletId, double balance) async {
-    final wallet = _wallets.firstWhere((w) => w.id == walletId);
-    wallet.balance = balance;
-    await updateWallet(wallet);
+    final index = _wallets.indexWhere((w) => w.id == walletId);
+    if (index != -1) {
+      final updatedWallet = _wallets[index].copyWith(balance: balance);
+      await updateWallet(updatedWallet);
     }
+  }
 
-  // Get primary wallet budget
   double? getPrimaryWalletBudget() {
     return getPrimaryWallet()?.budget;
   }
 
   Future<void> updateWalletBalance(String walletId, double newBalance) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) {
+      debugPrint("WalletService: User not logged in. Cannot update balance.");
+      return;
+    }
+    _isLoading = true;
+    notifyListeners();
     try {
-      _isLoading = true;
-      notifyListeners();
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('wallets')
+          .doc(walletId)
+          .update({'balance': newBalance});
 
-      // Update in Firestore
-      await _firestore.collection('wallets').doc(walletId).update({
-        'balance': newBalance,
-      });
-
-      // Update in local storage
-      final wallet = _wallets.firstWhere((w) => w.id == walletId);
-      wallet.balance = newBalance;
-      await _localBox.put(walletId, wallet);
       final index = _wallets.indexWhere((w) => w.id == walletId);
-      if (index >= 0) {
-        _wallets[index] = wallet;
+      if (index != -1) {
+        _wallets[index] = _wallets[index].copyWith(balance: newBalance);
+        await _localBox.put(walletId, _wallets[index]);
       }
-
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
+      debugPrint("Error updating wallet balance directly: $e");
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 } 

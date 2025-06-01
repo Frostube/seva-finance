@@ -1,23 +1,27 @@
 import '../models/expense.dart';
-import 'storage_service.dart';
+// import 'storage_service.dart'; // Removed
 import 'wallet_service.dart';
 import 'package:hive/hive.dart';
 import 'notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_storage/firebase_storage.dart'; // Removed
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'category_service.dart';
+import '../models/wallet.dart';
 
 // Helper class for category summary
 class CategoryMonthlySummary {
+  final String categoryId;
   final String categoryName;
   final double totalAmount;
   final DateTime latestTransactionDateInMonth;
 
   CategoryMonthlySummary({
+    required this.categoryId,
     required this.categoryName,
     required this.totalAmount,
     required this.latestTransactionDateInMonth,
@@ -25,19 +29,29 @@ class CategoryMonthlySummary {
 }
 
 class ExpenseService with ChangeNotifier {
-  final StorageService _storageService;
-  final Box<double> _budgetBox;
+  // final StorageService _storageService; // Removed
+  // final Box<double> _budgetBox; // Removed
   final Box<Expense> _expenseBox;
   final WalletService _walletService;
   final NotificationService _notificationService;
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+  // final FirebaseStorage _storage; // Removed
+  final CategoryService _categoryService;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<Expense> _expenses = [];
   bool _isLoading = false;
   Future<void>? _initialLoadFuture;
 
-  ExpenseService(this._storageService, this._budgetBox, this._expenseBox, this._walletService, this._notificationService, this._firestore, this._storage) {
+  ExpenseService(
+    // this._storageService, // Removed
+    // this._budgetBox, // Removed
+    this._expenseBox, 
+    this._walletService, 
+    this._notificationService, 
+    this._firestore, 
+    // this._storage, // Removed
+    this._categoryService
+  ) {
     _initialLoadFuture = _loadExpenses();
   }
 
@@ -49,79 +63,97 @@ class ExpenseService with ChangeNotifier {
   String? get _userId => _auth.currentUser?.uid;
 
   Future<void> _loadExpenses() async {
+    if (_isLoading) return;
     _isLoading = true;
-    notifyListeners();
+
+    final String? currentUserId = _userId;
+    if (currentUserId == null) {
+      debugPrint('ExpenseService: User not authenticated. Loading expenses from local cache only.');
+      _expenses = _expenseBox.values.toList();
+      _isLoading = false;
+      notifyListeners(); // Notify after local load
+      return;
+    }
 
     try {
-      // Load from local storage first
-      _expenses = _expenseBox.values.toList();
-
-      // Then sync with Firestore
-      final snapshot = await _firestore.collection('expenses')
-          .where('userId', isEqualTo: _userId)
+      debugPrint('ExpenseService: User $currentUserId authenticated. Syncing expenses.');
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('expenses')
           .get();
+      debugPrint('ExpenseService: Fetched ${snapshot.docs.length} expenses from Firestore for user $currentUserId.');
+      
       final remoteExpenses = snapshot.docs.map((doc) {
         final data = doc.data();
-        return Expense(
-          id: doc.id,
-          amount: data['amount'] as double,
-          category: data['category'] as String,
-          date: DateTime.parse(data['date'] as String),
-          note: data['note'] as String?,
-        );
+        // Use Expense.fromJson, ensure 'id' is passed
+        return Expense.fromJson({
+           ...data,
+          'id': doc.id 
+        });
       }).toList();
 
-      // Merge local and remote expenses
+      Map<String, Expense> localExpensesMap = { for (var e in _expenseBox.values) e.id : e };
+      Set<String> remoteExpenseIds = {};
+
       for (final remoteExpense in remoteExpenses) {
-        final localIndex = _expenses.indexWhere((e) => e.id == remoteExpense.id);
-        if (localIndex >= 0) {
-          _expenses[localIndex] = remoteExpense;
-        } else {
-          _expenses.add(remoteExpense);
-        }
+        remoteExpenseIds.add(remoteExpense.id);
+        await _expenseBox.put(remoteExpense.id, remoteExpense);
+        localExpensesMap[remoteExpense.id] = remoteExpense;
       }
 
-      // Save merged expenses to local storage
-      await _expenseBox.clear();
-      for (final expense in _expenses) {
-        await _expenseBox.put(expense.id, expense);
+      List<String> expensesToDeleteLocally = [];
+      for (final localExpenseId in localExpensesMap.keys) {
+        if (!remoteExpenseIds.contains(localExpenseId)) {
+          expensesToDeleteLocally.add(localExpenseId);
+        }
       }
+      for (final expenseIdToDelete in expensesToDeleteLocally) {
+        await _expenseBox.delete(expenseIdToDelete);
+        localExpensesMap.remove(expenseIdToDelete);
+        debugPrint('ExpenseService: Deleted expense $expenseIdToDelete from local cache.');
+      }
+      
+      _expenses = localExpensesMap.values.toList();
+      _expenses.sort((a, b) => b.date.compareTo(a.date)); // Keep expenses sorted by date
+      debugPrint('ExpenseService: Synced ${_expenses.length} expenses.');
+
     } catch (e) {
-      debugPrint('Error loading expenses: $e');
+      debugPrint('Error syncing expenses with Firestore: $e. Using local cache as fallback.');
+      _expenses = _expenseBox.values.toList();
+      _expenses.sort((a, b) => b.date.compareTo(a.date)); // Sort fallback too
     }
 
     _isLoading = false;
-    notifyListeners();
+    notifyListeners(); // Notify after all loading/syncing is done
   }
 
-  // Get all expenses
   Future<List<Expense>> getAllExpenses() async {
-    return await _storageService.getAllExpenses();
+    await initializationComplete;
+    return List.from(_expenses);
   }
 
-  // Get all expenses for a specific month
   Future<List<Expense>> getExpensesForMonth(DateTime month) async {
+    await initializationComplete;
     print('ExpenseService: getExpensesForMonth called for month: $month. Internal _expenses count: ${_expenses.length}');
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
-    // Filter the internal _expenses list, which is updated by add/delete/update operations
     final filteredExpenses = _expenses.where((expense) {
       return expense.date.isAfter(startOfMonth.subtract(const Duration(seconds: 1))) &&
              expense.date.isBefore(endOfMonth.add(const Duration(seconds: 1)));
     }).toList();
     print('ExpenseService: getExpensesForMonth for $month returning ${filteredExpenses.length} items.');
-    return filteredExpenses; // Directly return the synchronously filtered list
+    return filteredExpenses;
   }
 
-  // Get total amount spent in a specific month
   Future<double> getTotalForMonth(DateTime month) async {
-    final expenses = await getExpensesForMonth(month);
-    return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
+    final expensesForMonth = await getExpensesForMonth(month);
+    return expensesForMonth.fold<double>(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  // Get expenses by category for a specific month, sorted by recency
   Future<List<CategoryMonthlySummary>> getExpensesByCategory(DateTime month) async {
+    await initializationComplete;
     print('ExpenseService: getExpensesByCategory called for $month');
     final expensesForMonth = await getExpensesForMonth(month);
 
@@ -133,44 +165,43 @@ class ExpenseService with ChangeNotifier {
     final Map<String, Map<String, dynamic>> categoryData = {};
 
     for (final expense in expensesForMonth) {
-      if (!categoryData.containsKey(expense.category)) {
-        categoryData[expense.category] = {
+      if (!categoryData.containsKey(expense.categoryId)) {
+        categoryData[expense.categoryId] = {
           'total': 0.0,
-          // Initialize with a very old date to ensure first expense.date is picked
-          'latestDate': DateTime(1900), 
+          'latestDate': DateTime(1900),
         };
       }
-      categoryData[expense.category]!['total'] = 
-          (categoryData[expense.category]!['total'] as double) + expense.amount;
+      categoryData[expense.categoryId]!['total'] = 
+          (categoryData[expense.categoryId]!['total'] as double) + expense.amount;
       
-      if (expense.date.isAfter(categoryData[expense.category]!['latestDate'] as DateTime)) {
-        categoryData[expense.category]!['latestDate'] = expense.date;
+      if (expense.date.isAfter(categoryData[expense.categoryId]!['latestDate'] as DateTime)) {
+        categoryData[expense.categoryId]!['latestDate'] = expense.date;
       }
     }
     
     final List<CategoryMonthlySummary> summaries = categoryData.entries.map((entry) {
       return CategoryMonthlySummary(
-        categoryName: entry.key,
+        categoryId: entry.key,
+        categoryName: _categoryService.getCategoryNameById(entry.key, defaultName: entry.key),
         totalAmount: entry.value['total'] as double,
         latestTransactionDateInMonth: entry.value['latestDate'] as DateTime,
       );
     }).toList();
 
-    // Sort by latestTransactionDateInMonth (descending), then by totalAmount (descending) as a tie-breaker
     summaries.sort((a, b) {
       int dateCompare = b.latestTransactionDateInMonth.compareTo(a.latestTransactionDateInMonth);
       if (dateCompare != 0) {
         return dateCompare;
       }
-      return b.totalAmount.compareTo(a.totalAmount); // Secondary sort by amount if dates are same
+      return b.totalAmount.compareTo(a.totalAmount);
     });
     
     print('ExpenseService: getExpensesByCategory for $month returning ${summaries.length} summaries, sorted.');
     return summaries;
   }
 
-  // New method for 6-month summary
   Future<Map<String, dynamic>> getMonthlyExpenseSummaryForLastSixMonths() async {
+    await initializationComplete;
     print('ExpenseService: getMonthlyExpenseSummaryForLastSixMonths START');
     final List<FlSpot> spots = [];
     final List<String> monthLabels = [];
@@ -182,11 +213,9 @@ class ExpenseService with ChangeNotifier {
       final targetMonth = DateTime(now.year, now.month - i, 1);
       final totalForMonth = await getTotalForMonth(targetMonth);
       
-      // The FlSpot x-value will be 0 for the earliest month, up to 5 for the current month.
-      // So, for i=5 (earliest month), spotX is 0. For i=0 (current month), spotX is 5.
       final spotX = 5 - i.toDouble();
       spots.add(FlSpot(spotX, totalForMonth));
-      monthLabels.add(DateFormat('MMM').format(targetMonth)); // e.g., "Jan", "Feb"
+      monthLabels.add(DateFormat('MMM').format(targetMonth));
 
       if (totalForMonth > maxMonthlySpending) {
         maxMonthlySpending = totalForMonth;
@@ -201,123 +230,143 @@ class ExpenseService with ChangeNotifier {
     };
   }
 
-  // Add a new expense
   Future<void> addExpense(Expense expense) async {
-    print('ExpenseService: addExpense START - Category: ${expense.category}, Amount: ${expense.amount}');
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
     try {
-      _isLoading = true;
-      notifyListeners();
+      // Use expense.id if provided (e.g., for client-generated IDs), or let Firestore auto-generate
+      // For this refactor, assuming expense.id is the one to use.
+      final DocumentReference docRef = _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('expenses')
+          .doc(expense.id); // Use provided expense.id
+      
+      Map<String, dynamic> expenseData = expense.toJson();
+      expenseData.remove('userId'); // Remove userId as it's in the path
 
-      // Add to Firestore
-      final docRef = await _firestore.collection('expenses').add({
-        'amount': expense.amount,
-        'category': expense.category,
-        'date': expense.date.toIso8601String(),
-        'note': expense.note,
-        'userId': _userId,
-      });
+      await docRef.set(expenseData);
+      debugPrint('ExpenseService: Expense ${expense.id} added to Firestore for user $currentUserId');
 
-      // Update expense with Firestore ID
-      final updatedExpense = Expense(
-        id: docRef.id,
-        amount: expense.amount,
-        category: expense.category,
-        date: expense.date,
-        note: expense.note,
-      );
-
-      // Save to local storage
-      await _expenseBox.put(updatedExpense.id, updatedExpense);
-      print('ExpenseService: addExpense - Saved to _expenseBox. ID: ${updatedExpense.id}');
-      _expenses.add(updatedExpense);
-      print('ExpenseService: addExpense - Added to internal _expenses list. New count: ${_expenses.length}');
-
+      // Assuming the passed expense object is the one to be stored locally.
+      // If Firestore auto-generates ID (using .add()), you would update expense.id here.
+      _expenses.add(expense); 
+      _expenses.sort((a, b) => b.date.compareTo(a.date));
+      await _expenseBox.put(expense.id, expense);
+      
+      final primaryWallet = _walletService.getPrimaryWallet();
+      if (primaryWallet != null) {
+        await _walletService.updateWalletBalance(
+          primaryWallet.id, 
+          primaryWallet.balance - expense.amount
+        );
+      }
       _notificationService.addActionNotification(
-        title: 'New Expense Added',
-        message: '${expense.amount} spent on ${expense.category}',
+        title: 'Expense Added',
+        message: '${_categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId)} expense of \$${expense.amount} added.',
         relatedId: expense.id,
       );
-
-      _isLoading = false;
-      notifyListeners();
-      print('ExpenseService: addExpense END');
     } catch (e) {
+      debugPrint('Error adding expense: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
   Future<void> deleteExpense(String expenseId) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
     try {
-      _isLoading = true;
-      notifyListeners();
+      final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
+      if (expenseIndex == -1) {
+        debugPrint('ExpenseService: Expense $expenseId not found in local list for deletion.');
+        return; // Or throw error
+      }
+      final expenseToDelete = _expenses[expenseIndex];
 
-      // Delete from Firestore
-      await _firestore.collection('expenses').doc(expenseId).delete();
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('expenses')
+          .doc(expenseId)
+          .delete();
+      debugPrint('ExpenseService: Expense $expenseId deleted from Firestore for user $currentUserId');
 
-      // Delete from local storage
+      _expenses.removeAt(expenseIndex);
+      // No need to re-sort if already sorted and removing an item
       await _expenseBox.delete(expenseId);
-      _expenses.removeWhere((e) => e.id == expenseId);
-
+      
+      final primaryWallet = _walletService.getPrimaryWallet();
+      if (primaryWallet != null) {
+        await _walletService.updateWalletBalance(
+          primaryWallet.id, 
+          primaryWallet.balance + expenseToDelete.amount 
+        );
+      }
       _notificationService.addActionNotification(
         title: 'Expense Deleted',
-        message: '${_expenseBox.get(expenseId)?.amount} removed from ${_expenseBox.get(expenseId)?.category}',
+        message: 'Expense of \$${expenseToDelete.amount} deleted.',
+        relatedId: expenseId,
       );
-
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
+      debugPrint('Error deleting expense: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
   Future<void> updateExpense(Expense expense) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    _isLoading = true;
+    notifyListeners();
     try {
-      _isLoading = true;
-      notifyListeners();
+      Map<String, dynamic> expenseData = expense.toJson();
+      expenseData.remove('userId');
 
-      // Update in Firestore
-      await _firestore.collection('expenses').doc(expense.id).update({
-        'amount': expense.amount,
-        'category': expense.category,
-        'date': expense.date.toIso8601String(),
-        'note': expense.note,
-        'userId': _userId,
-      });
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('expenses')
+          .doc(expense.id)
+          .update(expenseData);
+      debugPrint('ExpenseService: Expense ${expense.id} updated in Firestore for user $currentUserId');
 
-      // Update in local storage
-      await _expenseBox.put(expense.id, expense);
       final index = _expenses.indexWhere((e) => e.id == expense.id);
-      if (index >= 0) {
+      if (index != -1) {
         _expenses[index] = expense;
+        _expenses.sort((a, b) => b.date.compareTo(a.date)); // Re-sort if date might change
+        await _expenseBox.put(expense.id, expense);
       }
-
       _notificationService.addActionNotification(
         title: 'Expense Updated',
-        message: '${expense.amount} updated for ${expense.category}',
+        message: '${_categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId)} expense updated to \$${expense.amount}.',
         relatedId: expense.id,
       );
-
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
+      debugPrint('Error updating expense: $e');
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Get expenses for previous month (for trend calculation)
   Future<Map<String, double>> getExpensesForPreviousMonth(DateTime currentMonth) async {
+    await initializationComplete;
     final previousMonth = DateTime(
       currentMonth.year,
       currentMonth.month - 1,
-      1, // Use 1 for the day to ensure it's the start of the previous month
+      1, 
     );
-    // Adapt to the new return type of getExpensesByCategory
     final List<CategoryMonthlySummary> summaries = await getExpensesByCategory(previousMonth);
     final Map<String, double> categoryTotals = {};
     for (final summary in summaries) {
@@ -326,8 +375,8 @@ class ExpenseService with ChangeNotifier {
     return categoryTotals;
   }
 
-  // Calculate trend percentage for a category
   Future<double> calculateTrend() async {
+    await initializationComplete;
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1);
     
@@ -351,12 +400,13 @@ class ExpenseService with ChangeNotifier {
   }
 
   Future<List<Expense>> getExpenses() async {
-    return _expenseBox.values.toList();
+    await initializationComplete;
+    return List.from(_expenses);
   }
 
   Future<double> getTotalExpenses() async {
-    final expenses = await getExpenses();
-    return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
+    final expensesList = await getExpenses();
+    return expensesList.fold<double>(0.0, (sum, expense) => sum + expense.amount);
   }
 
   Future<double> getRemainingBudget() async {
@@ -366,6 +416,7 @@ class ExpenseService with ChangeNotifier {
   }
 
   Future<Map<String, List<Expense>>> getExpensesByTimeline() async {
+    await initializationComplete;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
@@ -376,10 +427,10 @@ class ExpenseService with ChangeNotifier {
       'Earlier': <Expense>[],
     };
 
-    final expenses = await getExpenses();
-    expenses.sort((a, b) => b.date.compareTo(a.date));
+    final expensesList = await getExpenses();
+    expensesList.sort((a, b) => b.date.compareTo(a.date));
 
-    for (var expense in expenses) {
+    for (var expense in expensesList) {
       final expenseDate = DateTime(
         expense.date.year,
         expense.date.month,
@@ -394,17 +445,16 @@ class ExpenseService with ChangeNotifier {
         groupedExpenses['Earlier']!.add(expense);
       }
     }
-
     return groupedExpenses;
   }
 
-  List<Expense> getExpensesInCategory(String category) {
-    return _expenses.where((e) => e.category == category).toList();
+  List<Expense> getExpensesInCategory(String categoryId) {
+    return _expenses.where((e) => e.categoryId == categoryId).toList();
   }
 
-  double getTotalExpensesByCategory(String category) {
+  double getTotalExpensesByCategory(String categoryId) {
     return _expenses
-        .where((e) => e.category == category)
+        .where((e) => e.categoryId == categoryId)
         .fold(0.0, (sum, e) => sum + e.amount);
   }
 
@@ -419,32 +469,27 @@ class ExpenseService with ChangeNotifier {
   }
 
   Future<void> checkBudgetExceeded(String walletId, double amount) async {
-    final wallet = _budgetBox.get(walletId);
-    if (wallet != null && wallet > 0) {
+    final walletBudget = _walletService.getWalletBudget(walletId);
+    
+    if (walletBudget > 0) {
       final monthlyExpenses = await getExpensesForMonth(DateTime.now());
       final totalSpent = monthlyExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
       
-      if (totalSpent + amount > wallet) {
+      if (totalSpent + amount > walletBudget) {
         _notificationService.addAlertNotification(
           alertId: walletId,
           title: 'Budget Alert',
-          message: 'This expense will exceed your monthly budget',
+          message: 'This expense will exceed your monthly budget for the selected wallet.',
         );
       }
     }
   }
 
-  // New methods for "My Spending" card
   Future<double> getTotalExpensesForDateRange(DateTime startDate, DateTime endDate) async {
-    final allExpenses = await getAllExpenses(); 
+    await initializationComplete;
     double total = 0.0;
-    for (var expense in allExpenses) {
-      // Ensure date comparison is done correctly (ignoring time part)
-      final expenseDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
-      final rangeStartDate = DateTime(startDate.year, startDate.month, startDate.day);
-      final rangeEndDate = DateTime(endDate.year, endDate.month, endDate.day);
-
-      if (!expenseDate.isBefore(rangeStartDate) && !expenseDate.isAfter(rangeEndDate)) {
+    for (var expense in _expenses) {
+      if (!expense.date.isBefore(startDate) && expense.date.isBefore(endDate.add(const Duration(days: 1)))) {
         total += expense.amount;
       }
     }
@@ -452,23 +497,18 @@ class ExpenseService with ChangeNotifier {
   }
 
   Future<List<double>> getDailyExpensesForWeek(DateTime dateInThatWeek) async {
-    final allExpenses = await getAllExpenses(); 
-    List<double> dailyTotals = List.filled(7, 0.0); // Monday to Sunday
-
-    // Determine Monday of the week for dateInThatWeek
-    // In Dart, weekday is 1 (Monday) to 7 (Sunday).
-    int daysToSubtract = dateInThatWeek.weekday - 1; // Monday (1) - 1 = 0. Sunday (7) - 1 = 6.
+    await initializationComplete;
+    List<double> dailyTotals = List.filled(7, 0.0);
+    int daysToSubtract = dateInThatWeek.weekday - 1;
     DateTime mondayOfWeek = DateTime(dateInThatWeek.year, dateInThatWeek.month, dateInThatWeek.day).subtract(Duration(days: daysToSubtract));
     print('ExpenseService: getDailyExpensesForWeek - dateInThatWeek: $dateInThatWeek, mondayOfWeek: $mondayOfWeek');
 
-    for (var expense in allExpenses) {
+    for (var expense in _expenses) {
       final expenseDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
-      // Check if the expense date is within the calculated week (Monday to Sunday)
       if (!expenseDate.isBefore(mondayOfWeek) && 
           expenseDate.isBefore(mondayOfWeek.add(const Duration(days: 7)))) {
-        // Calculate which day of the week it is (0 for Monday, 1 for Tuesday, ..., 6 for Sunday)
         int dayIndex = expenseDate.weekday - 1; 
-        if (dayIndex >= 0 && dayIndex < 7) { // Safety check
+        if (dayIndex >= 0 && dayIndex < 7) { 
           dailyTotals[dayIndex] += expense.amount;
         }
       }
@@ -477,12 +517,11 @@ class ExpenseService with ChangeNotifier {
     return dailyTotals;
   }
 
-  // New method for the main expense line chart
   Future<List<FlSpot>> getDailyExpenseSpotsForMonth(DateTime month) async {
+    await initializationComplete;
     print('ExpenseService: getDailyExpenseSpotsForMonth called for $month. Internal _expenses count: ${_expenses.length}');
     final List<FlSpot> spots = [];
     final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
-    // double maxSpending = 0.0; // Not strictly needed if chart auto-scales Y
 
     for (int i = 1; i <= daysInMonth; i++) {
       final currentDate = DateTime(month.year, month.month, i);
@@ -495,13 +534,87 @@ class ExpenseService with ChangeNotifier {
           dailyTotal += expense.amount;
         }
       }
-      // if (dailyTotal > maxSpending) {
-      //   maxSpending = dailyTotal;
-      // }
-      // X-value: (day - 1) so that day 1 is x=0, day 2 is x=1, etc.
       spots.add(FlSpot((i - 1).toDouble(), dailyTotal));
     }
     print('ExpenseService: getDailyExpenseSpotsForMonth for $month returning ${spots.length} spots.');
     return spots;
+  }
+
+  Future<Expense> recordExpenseAndUpdateWallet(
+    double amount,
+    String categoryId,
+    DateTime date,
+    String? note,
+    String walletId,
+  ) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    
+    final newExpenseId = _firestore.collection('users').doc(currentUserId).collection('expenses').doc().id;
+    final newExpense = Expense(
+      id: newExpenseId,
+      amount: amount,
+      categoryId: categoryId,
+      date: date,
+      note: note,
+    );
+    await addExpense(newExpense);
+    return newExpense;
+  }
+
+  Future<void> updateExpenseAndUpdateWallet(
+    Expense originalExpense,
+    double newAmount,
+    String newCategoryId,
+    DateTime newDate,
+    String? newNote,
+    String walletId,
+  ) async {
+    final String? currentUserId = _userId;
+    if (currentUserId == null) throw Exception('User not authenticated');
+    
+    final amountDifference = newAmount - originalExpense.amount;
+
+    final updatedExpense = Expense(
+      id: originalExpense.id,
+      amount: newAmount,
+      categoryId: newCategoryId,
+      date: newDate,
+      note: newNote,
+    );
+    await updateExpense(updatedExpense);
+
+    if (amountDifference != 0) {
+      Wallet? walletToUpdate = null;
+      if (walletId.isNotEmpty) {
+        for (final wallet in _walletService.wallets) {
+          if (wallet.id == walletId) {
+            walletToUpdate = wallet;
+            break;
+          }
+        }
+      }
+      if (walletToUpdate == null) {
+        walletToUpdate = _walletService.getPrimaryWallet();
+      }
+
+      if (walletToUpdate != null) {
+        await _walletService.updateWalletBalance(
+          walletToUpdate.id, 
+          walletToUpdate.balance - amountDifference
+        );
+      }
+    }
+  }
+
+  Future<Map<String, double>> getExpensesByCategoryForInsights(DateTime month) async {
+    await initializationComplete;
+    final expensesForMonthList = await getExpensesForMonth(month);
+    final Map<String, double> categoryTotals = {};
+    for (final expense in expensesForMonthList) {
+      final categoryName = _categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
+      categoryTotals[categoryName] = (categoryTotals[categoryName] ?? 0.0) + expense.amount;
+    }
+    return categoryTotals;
   }
 } 

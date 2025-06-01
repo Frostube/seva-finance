@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
 import 'package:uuid/uuid.dart';
+import '../services/category_service.dart';
+import 'package:provider/provider.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final Expense expense;
@@ -24,6 +26,7 @@ class TransactionDetailScreen extends StatefulWidget {
 
 class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   late Expense _expense;
+  late final CategoryService _categoryService;
   final TextEditingController _noteController = TextEditingController();
   final FocusNode _noteFocusNode = FocusNode();
   final Uuid _uuid = Uuid();
@@ -33,6 +36,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     super.initState();
     _expense = widget.expense;
     _noteController.text = _expense.note ?? '';
+    _categoryService = Provider.of<CategoryService>(context, listen: false);
   }
 
   void _showDatePicker() {
@@ -79,7 +83,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     _expense = Expense(
                       id: _expense.id,
                       amount: _expense.amount,
-                      category: _expense.category,
+                      categoryId: _expense.categoryId,
                       date: date,
                       note: _expense.note,
                     );
@@ -95,6 +99,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
   void _showCategoryPicker() {
     final categories = ['Groceries', 'Transportation', 'Shopping', 'Entertainment', 'Bills', 'Health', 'Other'];
+    final currentCategoryName = _categoryService.getCategoryNameById(_expense.categoryId);
 
     showModalBottomSheet(
       context: context,
@@ -172,7 +177,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                             _expense = Expense(
                               id: _expense.id,
                               amount: _expense.amount,
-                              category: categories[index],
+                              categoryId: categories[index],
                               date: _expense.date,
                               note: _expense.note,
                             );
@@ -185,15 +190,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           categories[index],
                           style: GoogleFonts.inter(
                             fontSize: 17,
-                            color: _expense.category == categories[index] 
+                            color: currentCategoryName == categories[index]
                                 ? const Color(0xFF1B4332)
                                 : Colors.black,
-                            fontWeight: _expense.category == categories[index] 
-                                ? FontWeight.w600 
+                            fontWeight: currentCategoryName == categories[index]
+                                ? FontWeight.w600
                                 : FontWeight.normal,
                           ),
                         ),
-                        trailing: _expense.category == categories[index]
+                        trailing: currentCategoryName == categories[index]
                             ? const Icon(
                                 CupertinoIcons.checkmark,
                                 color: Color(0xFF1B4332),
@@ -304,7 +309,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           _expense = Expense(
                             id: _expense.id,
                             amount: _expense.amount,
-                            category: categoryController.text,
+                            categoryId: categoryController.text,
                             date: _expense.date,
                             note: _expense.note,
                           );
@@ -448,7 +453,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           _expense = Expense(
                             id: _expense.id,
                             amount: amount,
-                            category: _expense.category,
+                            categoryId: _expense.categoryId,
                             date: _expense.date,
                             note: _expense.note,
                           );
@@ -488,7 +493,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     _expense = Expense(
       id: _expense.id,
       amount: _expense.amount,
-      category: _expense.category,
+      categoryId: _expense.categoryId,
       date: _expense.date,
       note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
     );
@@ -587,6 +592,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(symbol: '\$');
+    final String effectiveCategoryName = _categoryService.getCategoryNameById(_expense.categoryId, defaultName: _expense.categoryId);
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -646,7 +652,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 const SizedBox(height: 8),
                 // Category
                 Text(
-                  _expense.category,
+                  effectiveCategoryName,
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     color: Colors.grey[600],
@@ -677,7 +683,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 ),
                 _buildDetailRow(
                   'Category',
-                  _expense.category,
+                  effectiveCategoryName,
                   _showCategoryPicker,
                 ),
                 Container(

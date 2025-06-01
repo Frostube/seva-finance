@@ -93,7 +93,7 @@ class WalletManagementScreen extends StatelessWidget {
             budget: 0,
             isPrimary: false,
             colorValue: Colors.blue.value,
-            createdAt: DateTime.now().toIso8601String(),
+            createdAt: DateTime.now(),
           );
 
           Navigator.push(

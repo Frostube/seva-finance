@@ -1,44 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'expense.dart';
+part of 'ocr_settings.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ExpenseAdapter extends TypeAdapter<Expense> {
+class OcrSettingsAdapter extends TypeAdapter<OcrSettings> {
   @override
-  final int typeId = 0;
+  final int typeId = 7;
 
   @override
-  Expense read(BinaryReader reader) {
+  OcrSettings read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Expense(
-      id: fields[0] as String,
-      amount: fields[1] as double,
-      categoryId: fields[2] as String,
-      date: fields[3] as DateTime,
-      note: fields[4] as String?,
+    return OcrSettings(
+      documentType: fields[0] as String,
+      autoCrop: fields[1] as bool,
+      ocrMode: fields[2] as OcrMode,
+      dateFallback: fields[3] as DateFallback,
+      grayscaleThreshold: fields[4] as int,
+      brightnessContrast: fields[5] as int,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Expense obj) {
+  void write(BinaryWriter writer, OcrSettings obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.id)
+      ..write(obj.documentType)
       ..writeByte(1)
-      ..write(obj.amount)
+      ..write(obj.autoCrop)
       ..writeByte(2)
-      ..write(obj.categoryId)
+      ..write(obj.ocrMode)
       ..writeByte(3)
-      ..write(obj.date)
+      ..write(obj.dateFallback)
       ..writeByte(4)
-      ..write(obj.note);
+      ..write(obj.grayscaleThreshold)
+      ..writeByte(5)
+      ..write(obj.brightnessContrast);
   }
 
   @override
@@ -47,7 +50,7 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ExpenseAdapter &&
+      other is OcrSettingsAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

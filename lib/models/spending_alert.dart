@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'spending_alert.g.dart';
 
@@ -61,9 +62,30 @@ class SpendingAlert extends HiveObject {
         : '\$${threshold.toStringAsFixed(2)}';
   }
 
+  factory SpendingAlert.fromJson(Map<String, dynamic> json, String id) {
+    return SpendingAlert(
+      id: id,
+      walletId: json['walletId'] as String,
+      type: AlertType.values.firstWhere(
+        (e) => e.toString() == json['type'],
+        orElse: () => AlertType.fixedAmount, // Default if parsing fails
+      ),
+      threshold: (json['threshold'] as num).toDouble(),
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+      createdAt: json['createdAt'] is Timestamp
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(json['createdAt'] as String),
+      lastTriggered: json['lastTriggered'] != null
+          ? (json['lastTriggered'] is Timestamp
+              ? (json['lastTriggered'] as Timestamp).toDate()
+              : DateTime.parse(json['lastTriggered'] as String))
+          : null,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      // 'id': id, // ID is the document ID
       'walletId': walletId,
       'type': type.toString(),
       'threshold': threshold,
