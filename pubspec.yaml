@@ -48,6 +48,8 @@ dependencies:
   lucide_icons: ^0.257.0
   uuid: ^4.2.1
   shared_preferences: ^2.2.2
+  image_picker: ^1.1.2
+  google_mlkit_text_recognition: ^0.15.0
   
   # Hive Database
   hive: ^2.2.3
