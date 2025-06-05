@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
-import '../theme/colors.dart';
 import 'linked_cards_screen.dart';
 import 'notifications_screen.dart';
 import '../services/wallet_service.dart';
@@ -568,7 +567,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: AppTheme.secondaryTextColor,
                     ),
                   ),
                 ),

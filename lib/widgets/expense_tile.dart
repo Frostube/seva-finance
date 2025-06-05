@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seva_finance/models/expense.dart';
-import 'package:seva_finance/theme/colors.dart';
+import 'package:seva_finance/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -46,12 +46,12 @@ class ExpenseTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppTheme.primaryGreen.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           _getCategoryIcon(expense.category),
-          color: AppColors.primary,
+          color: AppTheme.primaryGreen,
         ),
       ),
       title: Text(
