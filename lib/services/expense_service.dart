@@ -253,6 +253,10 @@ class ExpenseService with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      // Grab the expense details before deleting so we can display them in
+      // the notification after removal.
+      final deletedExpense = _expenseBox.get(expenseId);
+
       // Delete from Firestore
       await _firestore.collection('expenses').doc(expenseId).delete();
 
@@ -262,7 +266,9 @@ class ExpenseService with ChangeNotifier {
 
       _notificationService.addActionNotification(
         title: 'Expense Deleted',
-        message: '${_expenseBox.get(expenseId)?.amount} removed from ${_expenseBox.get(expenseId)?.category}',
+        message: deletedExpense != null
+            ? '${deletedExpense.amount} removed from ${deletedExpense.category}'
+            : 'Expense removed',
       );
 
       _isLoading = false;
