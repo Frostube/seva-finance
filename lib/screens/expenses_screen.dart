@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import 'package:hive/hive.dart';
 import '../services/wallet_service.dart';
+import '../widgets/wallet_switcher.dart';
 import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,6 +40,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   late ExpenseService _expenseService;
   late WalletService _walletService;
+  Wallet? _selectedWallet;
   double? _monthlyBudget;
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
 
@@ -99,6 +101,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       Provider.of<FirebaseStorage>(context, listen: false),
     );
     _walletService = Provider.of<WalletService>(context, listen: false);
+    _selectedWallet = _walletService.selectedWallet ?? _walletService.getPrimaryWallet();
 
     // Wait for ExpenseService to finish its initial loading
     if (_expenseService.initializationComplete != null) {
@@ -213,11 +216,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Future<void> _loadBudget() async {
     print('ExpensesScreen: _loadBudget called for month: $_selectedMonth');
-    final primaryWallet = _walletService.getPrimaryWallet();
-    print('ExpensesScreen: primaryWallet: $primaryWallet');
-    
+    final wallet = _selectedWallet ?? _walletService.getPrimaryWallet();
+    print('ExpensesScreen: selectedWallet: $wallet');
+
     setState(() {
-      _monthlyBudget = primaryWallet?.budget ?? 0.0;
+      _monthlyBudget = wallet?.budget ?? 0.0;
     });
     print('ExpensesScreen: _monthlyBudget set to: $_monthlyBudget');
     await _updateCachedValues();
@@ -456,6 +459,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
     _loadMySpendingData();
     _loadSixMonthChartData();
+  }
+
+  void _onWalletSelected(Wallet wallet) {
+    _walletService.setSelectedWallet(wallet);
+    setState(() {
+      _selectedWallet = wallet;
+    });
+    _refreshScreen();
   }
 
   String _formatCurrency(double amount) {
@@ -1011,7 +1022,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 }
 
                 final totalSpent = totalSnapshot.data!;
-                final budget = primaryWallet.budget ?? 0.0;
+                final wallet = _selectedWallet ?? primaryWallet;
+                final budget = wallet.budget ?? 0.0;
                 final remainingBudget = budget - totalSpent;
 
                 print('ExpensesScreen: totalSpent: $totalSpent, budget: $budget, remainingBudget: $remainingBudget');
@@ -1049,6 +1061,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     ),
                                   ),
                                 ),
+                                if (_selectedWallet != null)
+                                  WalletSwitcher(
+                                    selectedWallet: _selectedWallet,
+                                    onWalletSelected: _onWalletSelected,
+                                    walletService: _walletService,
+                                  ),
                                 IconButton(
                                   icon: const Icon(CupertinoIcons.plus_circle),
                                   color: const Color(0xFF1B4332),
@@ -1102,8 +1120,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Text(
-                                    primaryWallet.budget != null && primaryWallet.budget! > 0
-                                        ? 'of ${formatter.format(primaryWallet.budget!)}'
+                                    wallet.budget != null && wallet.budget! > 0
+                                        ? 'of ${formatter.format(wallet.budget!)}'
                                         : 'No budget set',
                                     style: GoogleFonts.inter(
                                       fontSize: 16,
@@ -1123,8 +1141,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               ),
                               child: FractionallySizedBox(
                                 alignment: Alignment.centerLeft,
-                                widthFactor: primaryWallet.budget != null && primaryWallet.budget! > 0
-                                    ? (totalSpent / primaryWallet.budget!).clamp(0.0, 1.0)
+                                widthFactor: wallet.budget != null && wallet.budget! > 0
+                                    ? (totalSpent / wallet.budget!).clamp(0.0, 1.0)
                                     : 0.0,
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -1140,8 +1158,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               child: Row(
                                 children: [
                                   Text(
-                                    primaryWallet.budget != null && primaryWallet.budget! > 0
-                                        ? 'You have ${formatter.format(primaryWallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}'
+                                    wallet.budget != null && wallet.budget! > 0
+                                        ? 'You have ${formatter.format(wallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}'
                                         : 'Tap to set a monthly budget',
                                     style: GoogleFonts.inter(
                                       fontSize: 14,

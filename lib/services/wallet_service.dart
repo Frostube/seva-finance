@@ -14,6 +14,7 @@ class WalletService with ChangeNotifier {
   final FirebaseStorage _storage;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<Wallet> _wallets = [];
+  Wallet? _selectedWallet;
   bool _isLoading = false;
   final NotificationService _notificationService;
 
@@ -22,6 +23,7 @@ class WalletService with ChangeNotifier {
   }
 
   List<Wallet> get wallets => _wallets;
+  Wallet? get selectedWallet => _selectedWallet;
   bool get isLoading => _isLoading;
 
   Future<void> _loadWallets() async {
@@ -75,6 +77,9 @@ class WalletService with ChangeNotifier {
       for (final wallet in _wallets) {
         await _localBox.put(wallet.id, wallet);
       }
+
+      // Initialize selected wallet if not already set
+      _selectedWallet ??= getPrimaryWallet();
     } catch (e) {
       debugPrint('Error loading wallets: $e');
     }
@@ -101,6 +106,12 @@ class WalletService with ChangeNotifier {
     } catch (e) {
       return _wallets.first;
     }
+  }
+
+  // Set the currently selected wallet (does not change primary)
+  void setSelectedWallet(Wallet wallet) {
+    _selectedWallet = wallet;
+    notifyListeners();
   }
 
   // Set primary wallet
