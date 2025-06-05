@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/expense_service.dart';
 import '../models/expense.dart';
+import '../services/wallet_service.dart';
+import '../models/wallet.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 class AddExpenseScreen extends StatefulWidget {
@@ -29,16 +32,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController _noteController = TextEditingController();
   final FocusNode _noteFocusNode = FocusNode();
   final _uuid = const Uuid();
+  late WalletService _walletService;
+  Wallet? _selectedWallet;
 
   @override
   void initState() {
     super.initState();
+    _walletService = Provider.of<WalletService>(context, listen: false);
+    _selectedWallet = _walletService.getPrimaryWallet();
     // Initialize with existing expense data if editing
     if (widget.initialExpense != null) {
       _amountController.text = NumberFormat.currency(symbol: '\$').format(widget.initialExpense!.amount);
       _selectedCategory = widget.initialExpense!.category;
       _selectedDate = widget.initialExpense!.date;
       _noteController.text = widget.initialExpense!.note ?? '';
+      _selectedWallet = _walletService.wallets.firstWhere(
+        (w) => w.id == widget.initialExpense!.walletId,
+        orElse: () => _selectedWallet ?? _walletService.getPrimaryWallet()!,
+      );
     } else {
       // Initialize with currency format for new expense
       _formatAmount('0');
@@ -80,12 +91,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
 
+    if (_selectedWallet == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a wallet')),
+      );
+      return;
+    }
+
     final newExpense = Expense(
       id: widget.initialExpense?.id ?? _uuid.v4(),
       amount: amount,
       category: _selectedCategory,
       date: _selectedDate,
       note: _noteController.text.isEmpty ? null : _noteController.text,
+      walletId: _selectedWallet!.id,
     );
     print('AddExpenseScreen: Expense object created. ID: ${newExpense.id}, Category: ${newExpense.category}, Amount: ${newExpense.amount}'); // LOG
 
@@ -252,6 +271,75 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                     );
                   }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWalletPicker() {
+    final wallets = _walletService.wallets;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.5,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              height: 4,
+              width: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Select Wallet',
+                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.inter(fontSize: 17, color: const Color(0xFF1B4332), fontWeight: FontWeight.w600),
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                itemCount: wallets.length,
+                itemBuilder: (context, index) {
+                  final wallet = wallets[index];
+                  return ListTile(
+                    onTap: () {
+                      setState(() {
+                        _selectedWallet = wallet;
+                      });
+                      Navigator.pop(context);
+                    },
+                    title: Text(wallet.name, style: GoogleFonts.inter(fontSize: 17)),
+                    trailing: _selectedWallet?.id == wallet.id
+                        ? const Icon(CupertinoIcons.checkmark, color: Color(0xFF1B4332))
+                        : null,
+                  );
                 },
               ),
             ),
@@ -492,6 +580,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
             child: Column(
               children: [
+                // Wallet
+                _buildInteractiveField(
+                  label: 'Wallet',
+                  value: _selectedWallet?.name ?? 'Select Wallet',
+                  icon: CupertinoIcons.creditcard,
+                  onTap: _showWalletPicker,
+                ),
+
+                const Divider(height: 1, indent: 16, endIndent: 16),
+
                 // Category
                 _buildInteractiveField(
                   label: 'Category',

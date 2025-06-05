@@ -68,6 +68,7 @@ class ExpenseService with ChangeNotifier {
           category: data['category'] as String,
           date: DateTime.parse(data['date'] as String),
           note: data['note'] as String?,
+          walletId: data['walletId'] as String,
         );
       }).toList();
 
@@ -95,35 +96,43 @@ class ExpenseService with ChangeNotifier {
   }
 
   // Get all expenses
-  Future<List<Expense>> getAllExpenses() async {
-    return await _storageService.getAllExpenses();
+  Future<List<Expense>> getAllExpenses({String? walletId}) async {
+    final all = await _storageService.getAllExpenses();
+    final currentWalletId = walletId ?? _walletService.getPrimaryWallet()?.id;
+    if (currentWalletId != null) {
+      return all.where((e) => e.walletId == currentWalletId).toList();
+    }
+    return all;
   }
 
   // Get all expenses for a specific month
-  Future<List<Expense>> getExpensesForMonth(DateTime month) async {
+  Future<List<Expense>> getExpensesForMonth(DateTime month, {String? walletId}) async {
     print('ExpenseService: getExpensesForMonth called for month: $month. Internal _expenses count: ${_expenses.length}');
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
     // Filter the internal _expenses list, which is updated by add/delete/update operations
+    final currentWalletId = walletId ?? _walletService.getPrimaryWallet()?.id;
     final filteredExpenses = _expenses.where((expense) {
+      final matchesWallet = currentWalletId == null || expense.walletId == currentWalletId;
       return expense.date.isAfter(startOfMonth.subtract(const Duration(seconds: 1))) &&
-             expense.date.isBefore(endOfMonth.add(const Duration(seconds: 1)));
+             expense.date.isBefore(endOfMonth.add(const Duration(seconds: 1))) &&
+             matchesWallet;
     }).toList();
     print('ExpenseService: getExpensesForMonth for $month returning ${filteredExpenses.length} items.');
     return filteredExpenses; // Directly return the synchronously filtered list
   }
 
   // Get total amount spent in a specific month
-  Future<double> getTotalForMonth(DateTime month) async {
-    final expenses = await getExpensesForMonth(month);
+  Future<double> getTotalForMonth(DateTime month, {String? walletId}) async {
+    final expenses = await getExpensesForMonth(month, walletId: walletId);
     return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
   }
 
   // Get expenses by category for a specific month, sorted by recency
-  Future<List<CategoryMonthlySummary>> getExpensesByCategory(DateTime month) async {
+  Future<List<CategoryMonthlySummary>> getExpensesByCategory(DateTime month, {String? walletId}) async {
     print('ExpenseService: getExpensesByCategory called for $month');
-    final expensesForMonth = await getExpensesForMonth(month);
+    final expensesForMonth = await getExpensesForMonth(month, walletId: walletId);
 
     if (expensesForMonth.isEmpty) {
       print('ExpenseService: No expenses found for $month. Returning empty list.');
@@ -170,7 +179,7 @@ class ExpenseService with ChangeNotifier {
   }
 
   // New method for 6-month summary
-  Future<Map<String, dynamic>> getMonthlyExpenseSummaryForLastSixMonths() async {
+  Future<Map<String, dynamic>> getMonthlyExpenseSummaryForLastSixMonths({String? walletId}) async {
     print('ExpenseService: getMonthlyExpenseSummaryForLastSixMonths START');
     final List<FlSpot> spots = [];
     final List<String> monthLabels = [];
@@ -180,7 +189,7 @@ class ExpenseService with ChangeNotifier {
     
     for (int i = 5; i >= 0; i--) {
       final targetMonth = DateTime(now.year, now.month - i, 1);
-      final totalForMonth = await getTotalForMonth(targetMonth);
+      final totalForMonth = await getTotalForMonth(targetMonth, walletId: walletId);
       
       // The FlSpot x-value will be 0 for the earliest month, up to 5 for the current month.
       // So, for i=5 (earliest month), spotX is 0. For i=0 (current month), spotX is 5.
@@ -214,6 +223,7 @@ class ExpenseService with ChangeNotifier {
         'category': expense.category,
         'date': expense.date.toIso8601String(),
         'note': expense.note,
+        'walletId': expense.walletId,
         'userId': _userId,
       });
 
@@ -224,6 +234,7 @@ class ExpenseService with ChangeNotifier {
         category: expense.category,
         date: expense.date,
         note: expense.note,
+        walletId: expense.walletId,
       );
 
       // Save to local storage
@@ -285,6 +296,7 @@ class ExpenseService with ChangeNotifier {
         'category': expense.category,
         'date': expense.date.toIso8601String(),
         'note': expense.note,
+        'walletId': expense.walletId,
         'userId': _userId,
       });
 
@@ -350,12 +362,17 @@ class ExpenseService with ChangeNotifier {
     }
   }
 
-  Future<List<Expense>> getExpenses() async {
-    return _expenseBox.values.toList();
+  Future<List<Expense>> getExpenses({String? walletId}) async {
+    final currentWalletId = walletId ?? _walletService.getPrimaryWallet()?.id;
+    final all = _expenseBox.values.toList();
+    if (currentWalletId != null) {
+      return all.where((e) => e.walletId == currentWalletId).toList();
+    }
+    return all;
   }
 
-  Future<double> getTotalExpenses() async {
-    final expenses = await getExpenses();
+  Future<double> getTotalExpenses({String? walletId}) async {
+    final expenses = await getExpenses(walletId: walletId);
     return expenses.fold<double>(0.0, (sum, expense) => sum + expense.amount);
   }
 
@@ -365,7 +382,7 @@ class ExpenseService with ChangeNotifier {
     return budget - totalExpenses;
   }
 
-  Future<Map<String, List<Expense>>> getExpensesByTimeline() async {
+  Future<Map<String, List<Expense>>> getExpensesByTimeline({String? walletId}) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
@@ -376,7 +393,7 @@ class ExpenseService with ChangeNotifier {
       'Earlier': <Expense>[],
     };
 
-    final expenses = await getExpenses();
+    final expenses = await getExpenses(walletId: walletId);
     expenses.sort((a, b) => b.date.compareTo(a.date));
 
     for (var expense in expenses) {
@@ -435,8 +452,8 @@ class ExpenseService with ChangeNotifier {
   }
 
   // New methods for "My Spending" card
-  Future<double> getTotalExpensesForDateRange(DateTime startDate, DateTime endDate) async {
-    final allExpenses = await getAllExpenses(); 
+  Future<double> getTotalExpensesForDateRange(DateTime startDate, DateTime endDate, {String? walletId}) async {
+    final allExpenses = await getAllExpenses(walletId: walletId);
     double total = 0.0;
     for (var expense in allExpenses) {
       // Ensure date comparison is done correctly (ignoring time part)
@@ -451,8 +468,8 @@ class ExpenseService with ChangeNotifier {
     return total;
   }
 
-  Future<List<double>> getDailyExpensesForWeek(DateTime dateInThatWeek) async {
-    final allExpenses = await getAllExpenses(); 
+  Future<List<double>> getDailyExpensesForWeek(DateTime dateInThatWeek, {String? walletId}) async {
+    final allExpenses = await getAllExpenses(walletId: walletId);
     List<double> dailyTotals = List.filled(7, 0.0); // Monday to Sunday
 
     // Determine Monday of the week for dateInThatWeek
@@ -478,7 +495,7 @@ class ExpenseService with ChangeNotifier {
   }
 
   // New method for the main expense line chart
-  Future<List<FlSpot>> getDailyExpenseSpotsForMonth(DateTime month) async {
+  Future<List<FlSpot>> getDailyExpenseSpotsForMonth(DateTime month, {String? walletId}) async {
     print('ExpenseService: getDailyExpenseSpotsForMonth called for $month. Internal _expenses count: ${_expenses.length}');
     final List<FlSpot> spots = [];
     final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
@@ -489,6 +506,9 @@ class ExpenseService with ChangeNotifier {
       double dailyTotal = 0.0;
 
       for (var expense in _expenses) {
+        if (walletId != null && expense.walletId != walletId) {
+          continue;
+        }
         if (expense.date.year == currentDate.year &&
             expense.date.month == currentDate.month &&
             expense.date.day == currentDate.day) {

@@ -250,11 +250,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       final DateTime endOfPreviousWeek = startOfCurrentWeek.subtract(const Duration(seconds: 1)); // End of Sunday previous week
       print('ExpensesScreen: _loadMySpendingData - startOfPreviousWeek (Mon): $startOfPreviousWeek, endOfPreviousWeek (Sun): $endOfPreviousWeek');
 
-      _currentWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfCurrentWeek, endOfCurrentWeek);
+      final walletId = _walletService.getPrimaryWallet()?.id;
+      _currentWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfCurrentWeek, endOfCurrentWeek, walletId: walletId);
       print('ExpensesScreen: _loadMySpendingData - _currentWeekTotal from service: $_currentWeekTotal');
-      _previousWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfPreviousWeek, endOfPreviousWeek);
+      _previousWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfPreviousWeek, endOfPreviousWeek, walletId: walletId);
       print('ExpensesScreen: _loadMySpendingData - _previousWeekTotal from service: $_previousWeekTotal');
-      _dailyTotalsForChart = await _expenseService.getDailyExpensesForWeek(now);
+      _dailyTotalsForChart = await _expenseService.getDailyExpensesForWeek(now, walletId: walletId);
       print('ExpensesScreen: _loadMySpendingData - _dailyTotalsForChart from service: $_dailyTotalsForChart');
 
       if (_previousWeekTotal > 0) {
@@ -287,7 +288,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
     print('ExpensesScreen: _loadSixMonthChartData START');
     try {
-      final chartData = await _expenseService.getMonthlyExpenseSummaryForLastSixMonths();
+      final walletId = _walletService.getPrimaryWallet()?.id;
+      final chartData = await _expenseService.getMonthlyExpenseSummaryForLastSixMonths(walletId: walletId);
       setState(() {
         _sixMonthChartSpots = chartData['spots'] as List<FlSpot>;
         _sixMonthChartLabels = chartData['monthLabels'] as List<String>;
