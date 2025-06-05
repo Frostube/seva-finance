@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
@@ -8,6 +9,7 @@ class NotificationService with ChangeNotifier {
   final Box<AppNotification> _localBox;
   final FirebaseFirestore _firestore;
   final FirebaseMessaging _messaging;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<AppNotification> _notifications = [];
   bool _isLoading = false;
 
@@ -33,9 +35,12 @@ class NotificationService with ChangeNotifier {
         // Get FCM token only if permission is granted
         final token = await _messaging.getToken();
         if (token != null) {
-          await _firestore.collection('users').doc('current').update({
-            'fcmTokens': FieldValue.arrayUnion([token]),
-          });
+          final userId = _auth.currentUser?.uid;
+          if (userId != null) {
+            await _firestore.collection('users').doc(userId).update({
+              'fcmTokens': FieldValue.arrayUnion([token]),
+            });
+          }
         }
 
         // Handle incoming messages when app is in foreground
