@@ -81,8 +81,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _initializeAsyncDependencies(); // Call the new async init method
     
     // Listen for wallet changes
-    _walletBoxSubscription = Hive.box<Wallet>('wallets').watch().listen((event) {
+    _walletBoxSubscription =
+        Hive.box<Wallet>('wallets').watch().listen((event) {
       _loadBudget();
+      _refreshScreen();
     });
   }
 
@@ -451,6 +453,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void _refreshScreen() {
     setState(() {
+      // Reset calculated values so UI does not briefly show old data
+      _currentWeekTotal = 0.0;
+      _previousWeekTotal = 0.0;
+      _dailyTotalsForChart = List.filled(7, 0.0);
+      _spendingTrend = 0.0;
+      _sixMonthChartSpots = [];
+      _sixMonthChartLabels = [];
+      _maxSixMonthSpending = 0.0;
+      _isMySpendingLoading = true;
+      _isSixMonthChartLoading = true;
       _refreshCounter++;
       print('ExpensesScreen: _refreshScreen called, counter is now: $_refreshCounter');
     });
