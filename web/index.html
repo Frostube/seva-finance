@@ -73,7 +73,9 @@
           serviceWorkerVersion: serviceWorkerVersion,
         },
         onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
+          engineInitializer.initializeEngine({
+            renderer: 'html'
+          }).then(function(appRunner) {
             appRunner.runApp();
           });
         }

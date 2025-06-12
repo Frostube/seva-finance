@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
-import 'package:uuid/uuid.dart';
 import '../services/category_service.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +28,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   late final CategoryService _categoryService;
   final TextEditingController _noteController = TextEditingController();
   final FocusNode _noteFocusNode = FocusNode();
-  final Uuid _uuid = Uuid();
 
   @override
   void initState() {

@@ -88,21 +88,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     print('AddExpenseScreen: Expense object created. ID: ${newExpense.id}, CategoryID: ${newExpense.categoryId}, Amount: ${newExpense.amount}'); // LOG
 
     try {
-      if (widget.initialExpense != null) {
+    if (widget.initialExpense != null) {
         print('AddExpenseScreen: BEFORE calling expenseService.updateExpense'); // LOG
         await widget.expenseService.updateExpense(newExpense); // Changed from addExpense to updateExpense for existing
         print('AddExpenseScreen: AFTER calling expenseService.updateExpense'); // LOG
-      } else {
+    } else {
         print('AddExpenseScreen: BEFORE calling expenseService.addExpense'); // LOG
         await widget.expenseService.addExpense(newExpense);
         print('AddExpenseScreen: AFTER calling expenseService.addExpense'); // LOG
-      }
-      
+    }
+    
       print('AddExpenseScreen: BEFORE calling onExpenseAdded callback.'); // LOG
-      widget.onExpenseAdded();
+    widget.onExpenseAdded();
       print('AddExpenseScreen: AFTER onExpenseAdded callback.'); // LOG
       
-      Navigator.pop(context, true);
+    Navigator.pop(context, true);
       print('AddExpenseScreen: Popped context.'); // LOG
     } catch (e) {
       print('AddExpenseScreen: Error saving expense: $e'); // LOG

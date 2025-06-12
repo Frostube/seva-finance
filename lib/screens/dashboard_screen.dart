@@ -19,11 +19,9 @@ import 'package:intl/intl.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
-import '../services/storage_service.dart';
 import 'package:seva_finance/widgets/expense_tile.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../services/auth_service.dart';
 import '../services/category_service.dart';
 import '../services/savings_goal_service.dart';
@@ -92,11 +90,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     _loadWallets();
-
+    
     if (mounted) {
       setState(() {
         _isScreenLoading = false;
-      });
+    });
     }
     print('DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: \$_isScreenLoading');
   }

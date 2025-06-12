@@ -78,12 +78,28 @@ class _SetSpendingAlertSheetState extends State<SetSpendingAlertSheet> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Set Spending Alert',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Set Spending Alert',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Set a threshold to get notified about your spending habits.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               IconButton(
@@ -92,7 +108,7 @@ class _SetSpendingAlertSheetState extends State<SetSpendingAlertSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           CupertinoSlidingSegmentedControl<AlertType>(
             groupValue: _selectedType,
             children: const {

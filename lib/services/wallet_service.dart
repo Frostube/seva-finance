@@ -36,7 +36,7 @@ class WalletService with ChangeNotifier {
       debugPrint('WalletService: User not authenticated. Loading from local cache only.');
       _wallets = _localBox.values.toList();
       _isLoading = false;
-      notifyListeners();
+    notifyListeners();
       return;
     }
 
@@ -111,8 +111,8 @@ class WalletService with ChangeNotifier {
     }
     if (_wallets.isEmpty) return;
 
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
 
     try {
       WriteBatch batch = _firestore.batch();
@@ -186,7 +186,7 @@ class WalletService with ChangeNotifier {
 
       await _localBox.put(wallet.id, wallet);
       _wallets.add(wallet);
-      
+
       _notificationService.addActionNotification(
         title: 'New Wallet Created',
         message: '${wallet.name} has been added to your wallets',
@@ -224,7 +224,7 @@ class WalletService with ChangeNotifier {
       if (index != -1) {
         _wallets[index] = wallet;
       }
-      
+
       _notificationService.addActionNotification(
         title: 'Wallet Updated',
         message: '${wallet.name} has been updated',
@@ -242,8 +242,8 @@ class WalletService with ChangeNotifier {
   Future<void> deleteWallet(String walletId) async {
     final String? currentUserId = _userId;
     if (currentUserId == null) throw Exception('User not authenticated');
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
 
     try {
       final Wallet walletToDelete = _wallets.firstWhere((w) => w.id == walletId, orElse: () => Wallet.empty);
@@ -262,7 +262,7 @@ class WalletService with ChangeNotifier {
       if (walletToDelete.isPrimary && _wallets.isNotEmpty) {
         await setPrimaryWallet(_wallets.first.id);
       }
-      
+
       _notificationService.addActionNotification(
         title: 'Wallet Deleted',
         message: '$deletedWalletName has been removed',
@@ -307,8 +307,8 @@ class WalletService with ChangeNotifier {
       debugPrint("WalletService: User not logged in. Cannot update balance.");
       return;
     }
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
     try {
       await _firestore
           .collection('users')

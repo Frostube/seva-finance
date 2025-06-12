@@ -812,7 +812,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       return const Scaffold(
         backgroundColor: Color(0xFFF8F9FA),
         body: Center(child: CupertinoActivityIndicator(radius: 16.0)),
-      );
+        );
     }
 
     final formatter = NumberFormat.currency(symbol: '\$');
@@ -1132,8 +1132,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                                   style: GoogleFonts.inter(
                                                     fontSize: 13,
                                                     color: const Color(0xFF8E8E93),
-                                                  ),
-                                                ),
+                        ),
+                      ),
                                               ] else ...[
                                                  Text(
                                                   'No spending last week',
@@ -1251,8 +1251,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,
                                           color: Color(0xFF3C3C43),
-                                        ),
-                                      ),
+                                  ),
+                                ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '-${_formatCurrency(totalSpent.abs())}',
@@ -1293,11 +1293,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                           const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF3C3C43)),
                                         ],
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                             const SizedBox(height: 16),
 
                             // Line/Area Chart - Placeholder or Real Data

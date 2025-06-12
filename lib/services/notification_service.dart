@@ -98,7 +98,7 @@ class NotificationService with ChangeNotifier {
       debugPrint('NotificationService: User not authenticated. Loading notifications from local cache only.');
       _notifications = _localBox.values.toList();
       _isLoading = false;
-      notifyListeners();
+    notifyListeners();
       return;
     }
 
@@ -165,8 +165,8 @@ class NotificationService with ChangeNotifier {
       debugPrint("NotificationService: User not logged in. Cannot add action notification.");
       return;
     }
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
 
     try {
       final notification = AppNotification.fromAction(
@@ -205,8 +205,8 @@ class NotificationService with ChangeNotifier {
       debugPrint("NotificationService: User not logged in. Cannot add alert notification.");
       return;
     }
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
 
     try {
       final notification = AppNotification.fromAlert(
@@ -214,7 +214,7 @@ class NotificationService with ChangeNotifier {
         title: title,
         message: message,
       );
-      
+
       await _firestore
           .collection('users')
           .doc(currentUserId)

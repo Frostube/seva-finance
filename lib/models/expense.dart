@@ -19,12 +19,16 @@ class Expense {
   @HiveField(4)
   final String? note;
 
+  @HiveField(5)
+  final String? walletId;
+
   const Expense({
     required this.id,
     required this.amount,
     required this.categoryId,
     required this.date,
     this.note,
+    this.walletId,
   });
 
   // Create from JSON (for database operations)
@@ -35,6 +39,7 @@ class Expense {
       categoryId: json['categoryId'] as String,
       date: DateTime.parse(json['date'] as String),
       note: json['note'] as String?,
+      walletId: json['walletId'] as String?,
     );
   }
 
@@ -46,6 +51,7 @@ class Expense {
       'categoryId': categoryId,
       'date': date.toIso8601String(),
       'note': note,
+      'walletId': walletId,
     };
   }
 } 

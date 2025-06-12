@@ -43,7 +43,7 @@ class _OcrScreenState extends State<OcrScreen> {
           imagePath: _selectedImage!.path,
           transactionDate: DateTime.now(), // Mock
           transactionTime: TimeOfDay.now(), // Mock
-          // Mock data for other fields will use defaults in ReviewReceiptScreen
+          ocrResults: const [], // Pass an empty list for now
         ),
       ),
     );

@@ -8,7 +8,7 @@ part of 'ocr_settings.dart';
 
 class OcrSettingsAdapter extends TypeAdapter<OcrSettings> {
   @override
-  final int typeId = 7;
+  final int typeId = 10;
 
   @override
   OcrSettings read(BinaryReader reader) {
@@ -51,6 +51,84 @@ class OcrSettingsAdapter extends TypeAdapter<OcrSettings> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OcrSettingsAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class OcrModeAdapter extends TypeAdapter<OcrMode> {
+  @override
+  final int typeId = 8;
+
+  @override
+  OcrMode read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return OcrMode.preview;
+      case 1:
+        return OcrMode.autoSubmit;
+      default:
+        return OcrMode.preview;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, OcrMode obj) {
+    switch (obj) {
+      case OcrMode.preview:
+        writer.writeByte(0);
+        break;
+      case OcrMode.autoSubmit:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OcrModeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class DateFallbackAdapter extends TypeAdapter<DateFallback> {
+  @override
+  final int typeId = 9;
+
+  @override
+  DateFallback read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return DateFallback.today;
+      case 1:
+        return DateFallback.askUser;
+      default:
+        return DateFallback.today;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, DateFallback obj) {
+    switch (obj) {
+      case DateFallback.today:
+        writer.writeByte(0);
+        break;
+      case DateFallback.askUser:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DateFallbackAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

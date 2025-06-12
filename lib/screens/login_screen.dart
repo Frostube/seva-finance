@@ -174,6 +174,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   enabled: !_isLoading,
                 ),
 
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: GoogleFonts.inter(
+                        color: Colors.red,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                 const SizedBox(height: 32),
 
                 // Login Button

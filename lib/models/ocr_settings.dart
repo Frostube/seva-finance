@@ -2,10 +2,23 @@ import 'package:hive/hive.dart';
 
 part 'ocr_settings.g.dart';
 
-enum OcrMode { preview, autoSubmit }
-enum DateFallback { today, askUser }
+@HiveType(typeId: 8) // Added HiveType for enum
+enum OcrMode {
+  @HiveField(0) // Added HiveField for enum value
+  preview,
+  @HiveField(1) // Added HiveField for enum value
+  autoSubmit
+}
 
-@HiveType(typeId: 7) // Ensure this typeId is unique
+@HiveType(typeId: 9) // Added HiveType for enum
+enum DateFallback {
+  @HiveField(0) // Added HiveField for enum value
+  today,
+  @HiveField(1) // Added HiveField for enum value
+  askUser
+}
+
+@HiveType(typeId: 10) // Ensure this typeId is unique
 class OcrSettings extends HiveObject {
   @HiveField(0)
   String documentType;

@@ -11,9 +11,11 @@ class AuthService with ChangeNotifier {
   AuthService(this._auth, this._firestore) {
     // Set persistence to LOCAL to maintain session
     _auth.setPersistence(Persistence.LOCAL);
+    print('AuthService: Persistence set to LOCAL.');
     
     // Listen to auth state changes
     _auth.authStateChanges().listen((User? user) {
+      print('AuthService: authStateChanges fired. User is: \${user?.uid}');
       _user = user;
       notifyListeners();
     });

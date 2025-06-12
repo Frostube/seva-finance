@@ -163,7 +163,7 @@ class ExpenseService with ChangeNotifier {
     }
 
     final Map<String, Map<String, dynamic>> categoryData = {};
-
+    
     for (final expense in expensesForMonth) {
       if (!categoryData.containsKey(expense.categoryId)) {
         categoryData[expense.categoryId] = {
@@ -233,8 +233,8 @@ class ExpenseService with ChangeNotifier {
   Future<void> addExpense(Expense expense) async {
     final String? currentUserId = _userId;
     if (currentUserId == null) throw Exception('User not authenticated');
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
     try {
       // Use expense.id if provided (e.g., for client-generated IDs), or let Firestore auto-generate
       // For this refactor, assuming expense.id is the one to use.
@@ -280,8 +280,8 @@ class ExpenseService with ChangeNotifier {
   Future<void> deleteExpense(String expenseId) async {
     final String? currentUserId = _userId;
     if (currentUserId == null) throw Exception('User not authenticated');
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
     try {
       final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
       if (expenseIndex == -1) {
@@ -326,8 +326,8 @@ class ExpenseService with ChangeNotifier {
   Future<void> updateExpense(Expense expense) async {
     final String? currentUserId = _userId;
     if (currentUserId == null) throw Exception('User not authenticated');
-    _isLoading = true;
-    notifyListeners();
+      _isLoading = true;
+      notifyListeners();
     try {
       Map<String, dynamic> expenseData = expense.toJson();
       expenseData.remove('userId');
