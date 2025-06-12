@@ -2,7 +2,7 @@
 
 A sleek and modern personal finance mobile application built with Flutter. Seva Finance helps you track your expenses, manage wallets, set budgets, and gain insights into your spending habits through a beautiful and intuitive user interface.
 
-## ✨ Features
+## Features
 
 - **Wallet Management**: Create and manage multiple digital wallets, each with its own balance and customizable color.
 - **Expense Tracking**: Easily add and categorize your daily expenses.
@@ -14,7 +14,7 @@ A sleek and modern personal finance mobile application built with Flutter. Seva 
 - **Insightful Dashboard**: A comprehensive dashboard that provides a clear overview of your wallets, recent expenses, and spending trends.
 - **Cross-Platform**: Built with Flutter for a seamless experience on both iOS and Android.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Flutter](https://flutter.dev/)
 - **Language**: [Dart](https://dart.dev/)
@@ -24,7 +24,7 @@ A sleek and modern personal finance mobile application built with Flutter. Seva 
 - **State Management**: [Provider](https://pub.dev/packages/provider)
 - **Authentication**: [Firebase Auth](https://firebase.google.com/docs/auth)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -55,6 +55,6 @@ A sleek and modern personal finance mobile application built with Flutter. Seva 
     flutter run
     ```
 
-## 🖼️ Screenshots
+## Screenshots
 
 *(Coming Soon: Add some screenshots of your app here to make it even more appealing!)*
