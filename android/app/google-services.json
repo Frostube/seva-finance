@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "741018143182",
+    "project_id": "seva-finance-app",
+    "storage_bucket": "seva-finance-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:741018143182:android:5e9ba75fce8a0489e4439f",
+        "android_client_info": {
+          "package_name": "com.example.seva_finance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZPHhpb2fTZJEogfy8_hIWN2X5bWFno2M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can manage their own user document
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null; // Allow user to create their own doc
+
+      // Notifications are a subcollection of a user document
+      match /notifications/{notificationId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+        // 'write' covers create and update
+    }
+
+      // Wallets subcollection (similar pattern as notifications)
+    match /wallets/{walletId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+      // Expenses subcollection (similar pattern)
+    match /expenses/{expenseId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+      // ExpenseCategories subcollection (similar pattern)
+      match /expenseCategories/{categoryId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+      // Add other subcollections like 'savingsGoals', 'spendingAlerts' if they exist
+      // and follow the same user-specific pattern.
+      match /savingsGoals/{goalId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /spendingAlerts/{alertId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // If you had a global 'notifications' collection before, this rule would be too open.
+    // It's better to make notifications user-specific as done above.
+    // match /notifications/{notificationId} {
+    //   allow read, write: if request.auth != null; // Example: Too permissive
+    // }
+  }
+}
