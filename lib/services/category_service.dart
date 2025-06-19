@@ -141,7 +141,9 @@ class CategoryService with ChangeNotifier {
       await _firestore.collection('users').doc(_userId).collection('expenseCategories').doc(category.id).set(category.toJson());
       debugPrint('CategoryService: Added category ${category.id} to Firestore.');
       
-      if (!_categories.any((c) => c.id == category.id)) _categories.add(category); else {
+      if (!_categories.any((c) => c.id == category.id)) {
+        _categories.add(category);
+      } else {
         final index = _categories.indexWhere((c) => c.id == category.id);
         _categories[index] = category;
       }

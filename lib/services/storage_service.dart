@@ -9,11 +9,8 @@ class StorageService extends ChangeNotifier {
   // Initialize Hive and register adapters
   static Future<void> init() async {
     await Hive.initFlutter();
-    
-    // Register adapters
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(ExpenseAdapter());
-    }
+
+    // Note: Adapters are now registered in main.dart to avoid duplicates
 
     // Open boxes
     await Hive.openBox<Expense>(expensesBox);
@@ -81,4 +78,4 @@ class StorageService extends ChangeNotifier {
       }
     }
   }
-} 
+}

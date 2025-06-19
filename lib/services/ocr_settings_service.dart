@@ -16,9 +16,7 @@ class OcrSettingsService with ChangeNotifier {
   }
 
   Future<void> _init() async {
-    if (!Hive.isAdapterRegistered(OcrSettingsAdapter().typeId)) {
-      Hive.registerAdapter(OcrSettingsAdapter());
-    }
+    // Note: Adapters are now registered in main.dart to avoid duplicates
     _box = await Hive.openBox<OcrSettings>(_boxName);
     _loadSettings();
   }
@@ -52,4 +50,4 @@ class OcrSettingsService with ChangeNotifier {
       await _init();
     }
   }
-} 
+}

@@ -7,13 +7,12 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
-import '../models/expense_category.dart'; // Added for type safety
+// Added for type safety
 import '../services/expense_service.dart';
 import '../services/category_service.dart';
-import 'add_expense_screen.dart';
 import 'ocr_settings_screen.dart'; // Added for navigation
-import '../models/ocr_settings.dart'; // For potential future use of settings in this screen
-import '../services/ocr_settings_service.dart'; // For potential future use
+// For potential future use of settings in this screen
+// For potential future use
 
 class ReviewReceiptScreen extends StatefulWidget {
   // Mock data for now - in the future, this will come from OCR

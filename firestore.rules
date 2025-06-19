@@ -10,22 +10,33 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
         // 'write' covers create and update
-    }
+      }
 
       // Wallets subcollection (similar pattern as notifications)
-    match /wallets/{walletId} {
+      match /wallets/{walletId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
+      }
 
       // Expenses subcollection (similar pattern)
-    match /expenses/{expenseId} {
+      match /expenses/{expenseId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
+      }
 
       // ExpenseCategories subcollection (similar pattern)
       match /expenseCategories/{categoryId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+      
+      // Settings subcollection for onboarding and other user settings
+      match /settings/{settingId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Analytics subcollection for user-specific event tracking
+      match /analytics/{eventId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
       // Add other subcollections like 'savingsGoals', 'spendingAlerts' if they exist
       // and follow the same user-specific pattern.
       match /savingsGoals/{goalId} {
@@ -34,6 +45,19 @@ service cloud.firestore {
 
       match /spendingAlerts/{alertId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Analytics collection for tracking user events
+    match /analytics/{analyticsType} {
+      // Allow authenticated users to write analytics events
+      allow write: if request.auth != null;
+      // Allow read access for analytics (optional, can be restricted)
+      allow read: if request.auth != null;
+      
+      match /events/{eventId} {
+        allow write: if request.auth != null;
+        allow read: if request.auth != null;
       }
     }
 

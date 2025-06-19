@@ -37,13 +37,13 @@
     const serviceWorkerVersion = '{{flutter_service_worker_version}}';
   </script>
 
-  <!-- Firebase SDK -->
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-storage-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-messaging-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/9.6.0/firebase-analytics-compat.js"></script>
+  <!-- Firebase SDK - Updated to stable v10.x -->
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
 
   <!-- Firebase Configuration -->
   <script>
@@ -57,8 +57,22 @@
       measurementId: "G-PRDFE66X52"
     };
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
+    // Initialize Firebase with error handling
+    try {
+      firebase.initializeApp(firebaseConfig);
+      console.log('Firebase initialized successfully');
+      
+      // Set Firestore settings for better performance
+      firebase.firestore().settings({
+        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+      });
+      
+      // Enable network persistence if needed
+      firebase.firestore().enableNetwork();
+      
+    } catch (error) {
+      console.error('Error initializing Firebase:', error);
+    }
   </script>
 
   <!-- Flutter initialization -->

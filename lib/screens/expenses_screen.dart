@@ -13,13 +13,11 @@ import 'add_budget_screen.dart';
 import 'remove_budget_screen.dart';
 import 'recent_expenses_screen.dart';
 import 'package:provider/provider.dart';
-import '../services/storage_service.dart';
 import 'package:hive/hive.dart';
 import '../services/wallet_service.dart';
 import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../services/category_service.dart';
 import 'ocr_screen.dart'; // Added for OCR screen navigation
 
@@ -31,14 +29,6 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  // Color palette for pie chart - more distinguishable pastels
-  static const pieColors = [
-    Color(0xFF40916C), // Main green
-    Color(0xFF9EC1A3), // Sage green
-    Color(0xFFCFE1B9), // Light mint
-    Color(0xFFE9F1EC), // Pale green
-  ];
-
   late ExpenseService _expenseService;
   late WalletService _walletService;
   late CategoryService _categoryService;
@@ -83,9 +73,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     super.initState();
     print('ExpensesScreen: initState called');
     _initializeAsyncDependencies(); // Call the new async init method
-    
+
     // Listen for wallet changes
-    _walletBoxSubscription = Hive.box<Wallet>('wallets').watch().listen((event) {
+    _walletBoxSubscription =
+        Hive.box<Wallet>('wallets').watch().listen((event) {
       _loadBudget();
     });
   }
@@ -93,7 +84,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   // New async method for initialization
   Future<void> _initializeAsyncDependencies() async {
     print('ExpensesScreen: _initializeAsyncDependencies START');
-    
+
     // Fetch WalletService first and await its initialization
     _walletService = Provider.of<WalletService>(context, listen: false);
     if (_walletService.initializationComplete != null) {
@@ -101,10 +92,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       await _walletService.initializationComplete;
       print('ExpensesScreen: WalletService initialization COMPLETE');
     } else {
-      print('ExpensesScreen: WalletService.initializationComplete is null, proceeding cautiously.');
+      print(
+          'ExpensesScreen: WalletService.initializationComplete is null, proceeding cautiously.');
     }
 
-    _categoryService = Provider.of<CategoryService>(context, listen: false); // Initialize CategoryService
+    _categoryService = Provider.of<CategoryService>(context,
+        listen: false); // Initialize CategoryService
     if (_categoryService.initializationComplete != null) {
       print('ExpensesScreen: Awaiting CategoryService initialization...');
       await _categoryService.initializationComplete;
@@ -124,16 +117,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       await _expenseService.initializationComplete;
       print('ExpensesScreen: ExpenseService initialization COMPLETE');
     } else {
-      print('ExpensesScreen: ExpenseService initializationComplete future is null, proceeding without await.');
+      print(
+          'ExpensesScreen: ExpenseService initializationComplete future is null, proceeding without await.');
     }
 
     // Now that ExpenseService is initialized, load screen-specific data
     // Use mounted check before calling setState in async methods if they might complete after dispose
-    if (!mounted) return; 
+    if (!mounted) return;
     await _loadBudget(); // Make sure _loadBudget is also async if it needs to be
-    if (!mounted) return; 
+    if (!mounted) return;
     await _loadMySpendingData(); // Load data for "My Spending" card
-    if (!mounted) return; 
+    if (!mounted) return;
     await _loadSixMonthChartData(); // Load 6-month overview chart data
 
     if (mounted) {
@@ -141,7 +135,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         _isScreenInitialized = true;
       });
     }
-    print('ExpensesScreen: _initializeAsyncDependencies END, _isScreenInitialized: \$_isScreenInitialized');
+    print(
+        'ExpensesScreen: _initializeAsyncDependencies END, _isScreenInitialized: \$_isScreenInitialized');
   }
 
   @override
@@ -208,7 +203,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1B4332),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -216,7 +212,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
+                  const Icon(CupertinoIcons.plus_circle_fill,
+                      color: Colors.white),
                   const SizedBox(width: 12),
                   Text(
                     'Create Your First Wallet',
@@ -239,7 +236,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     print('ExpensesScreen: _loadBudget called for month: $_selectedMonth');
     final primaryWallet = _walletService.getPrimaryWallet();
     print('ExpensesScreen: primaryWallet: $primaryWallet');
-    
+
     setState(() {
       _monthlyBudget = primaryWallet?.budget ?? 0.0;
     });
@@ -257,38 +254,52 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     try {
       final now = DateTime.now();
       print('ExpensesScreen: _loadMySpendingData - now: $now');
-      
+
       // Current week (Monday to Sunday)
       final int currentWeekday = now.weekday; // 1 (Mon) to 7 (Sun)
-      print('ExpensesScreen: _loadMySpendingData - currentWeekday (1-Mon, 7-Sun): $currentWeekday');
-      
+      print(
+          'ExpensesScreen: _loadMySpendingData - currentWeekday (1-Mon, 7-Sun): $currentWeekday');
+
       // Calculate Monday of the current week, at the very start of the day
-      DateTime mondayOfCurrentWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: currentWeekday - 1));
-      
-      final DateTime startOfCurrentWeek = mondayOfCurrentWeek; // Already at 00:00:00
-      final DateTime endOfCurrentWeek = mondayOfCurrentWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
-      print('ExpensesScreen: _loadMySpendingData - startOfCurrentWeek (Mon): $startOfCurrentWeek, endOfCurrentWeek (Sun): $endOfCurrentWeek');
+      DateTime mondayOfCurrentWeek = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: currentWeekday - 1));
+
+      final DateTime startOfCurrentWeek =
+          mondayOfCurrentWeek; // Already at 00:00:00
+      final DateTime endOfCurrentWeek = mondayOfCurrentWeek
+          .add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      print(
+          'ExpensesScreen: _loadMySpendingData - startOfCurrentWeek (Mon): $startOfCurrentWeek, endOfCurrentWeek (Sun): $endOfCurrentWeek');
 
       // Previous week
-      final DateTime startOfPreviousWeek = startOfCurrentWeek.subtract(const Duration(days: 7));
-      final DateTime endOfPreviousWeek = startOfCurrentWeek.subtract(const Duration(seconds: 1)); // End of Sunday previous week
-      print('ExpensesScreen: _loadMySpendingData - startOfPreviousWeek (Mon): $startOfPreviousWeek, endOfPreviousWeek (Sun): $endOfPreviousWeek');
+      final DateTime startOfPreviousWeek =
+          startOfCurrentWeek.subtract(const Duration(days: 7));
+      final DateTime endOfPreviousWeek = startOfCurrentWeek
+          .subtract(const Duration(seconds: 1)); // End of Sunday previous week
+      print(
+          'ExpensesScreen: _loadMySpendingData - startOfPreviousWeek (Mon): $startOfPreviousWeek, endOfPreviousWeek (Sun): $endOfPreviousWeek');
 
-      _currentWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfCurrentWeek, endOfCurrentWeek);
-      print('ExpensesScreen: _loadMySpendingData - _currentWeekTotal from service: $_currentWeekTotal');
-      _previousWeekTotal = await _expenseService.getTotalExpensesForDateRange(startOfPreviousWeek, endOfPreviousWeek);
-      print('ExpensesScreen: _loadMySpendingData - _previousWeekTotal from service: $_previousWeekTotal');
+      _currentWeekTotal = await _expenseService.getTotalExpensesForDateRange(
+          startOfCurrentWeek, endOfCurrentWeek);
+      print(
+          'ExpensesScreen: _loadMySpendingData - _currentWeekTotal from service: $_currentWeekTotal');
+      _previousWeekTotal = await _expenseService.getTotalExpensesForDateRange(
+          startOfPreviousWeek, endOfPreviousWeek);
+      print(
+          'ExpensesScreen: _loadMySpendingData - _previousWeekTotal from service: $_previousWeekTotal');
       _dailyTotalsForChart = await _expenseService.getDailyExpensesForWeek(now);
-      print('ExpensesScreen: _loadMySpendingData - _dailyTotalsForChart from service: $_dailyTotalsForChart');
+      print(
+          'ExpensesScreen: _loadMySpendingData - _dailyTotalsForChart from service: $_dailyTotalsForChart');
 
       if (_previousWeekTotal > 0) {
-        _spendingTrend = (_currentWeekTotal - _previousWeekTotal) / _previousWeekTotal;
+        _spendingTrend =
+            (_currentWeekTotal - _previousWeekTotal) / _previousWeekTotal;
       } else if (_currentWeekTotal > 0) {
-        _spendingTrend = 1.0; // Effectively +100% if previous was 0 and current is > 0
+        _spendingTrend =
+            1.0; // Effectively +100% if previous was 0 and current is > 0
       } else {
         _spendingTrend = 0.0; // No change if both are 0
       }
-
     } catch (e) {
       print('Error loading my spending data: $e');
       // Set to default values in case of error
@@ -311,13 +322,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
     print('ExpensesScreen: _loadSixMonthChartData START');
     try {
-      final chartData = await _expenseService.getMonthlyExpenseSummaryForLastSixMonths();
+      final chartData =
+          await _expenseService.getMonthlyExpenseSummaryForLastSixMonths();
       setState(() {
         _sixMonthChartSpots = chartData['spots'] as List<FlSpot>;
         _sixMonthChartLabels = chartData['monthLabels'] as List<String>;
         // Add 20% padding to max spending for Y-axis, or default if no spending
         final rawMaxSpending = chartData['maxSpending'] as double;
-        _maxSixMonthSpending = rawMaxSpending > 0 ? rawMaxSpending * 1.2 : 100; 
+        _maxSixMonthSpending = rawMaxSpending > 0 ? rawMaxSpending * 1.2 : 100;
       });
     } catch (e) {
       print('Error loading 6-month chart data: $e');
@@ -330,48 +342,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     setState(() {
       _isSixMonthChartLoading = false;
     });
-    print('ExpensesScreen: _loadSixMonthChartData END - Spots: ${_sixMonthChartSpots.length}, Labels: ${_sixMonthChartLabels.length}');
+    print(
+        'ExpensesScreen: _loadSixMonthChartData END - Spots: ${_sixMonthChartSpots.length}, Labels: ${_sixMonthChartLabels.length}');
   }
 
   Future<void> _updateCachedValues() async {
-    print('ExpensesScreen: Updating cached values for ${DateFormat('MMMM yyyy').format(_selectedMonth)}');
+    print(
+        'ExpensesScreen: Updating cached values for ${DateFormat('MMMM yyyy').format(_selectedMonth)}');
     setState(() {
       _refreshCounter++;
     });
-  }
-
-  Future<Map<String, List<Expense>>> _groupExpensesByTimeline() async {
-    print('ExpensesScreen: _groupExpensesByTimeline called');
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-
-    final groupedExpenses = {
-      'Today': <Expense>[],
-      'This Week': <Expense>[],
-      'Earlier': <Expense>[],
-    };
-
-    final expenses = await _expenseService.getExpenses();
-    expenses.sort((a, b) => b.date.compareTo(a.date));
-
-    for (var expense in expenses) {
-      final expenseDate = DateTime(
-        expense.date.year,
-        expense.date.month,
-        expense.date.day,
-      );
-
-      if (expenseDate == today) {
-        groupedExpenses['Today']!.add(expense);
-      } else if (expenseDate.isAfter(startOfWeek)) {
-        groupedExpenses['This Week']!.add(expense);
-      } else {
-        groupedExpenses['Earlier']!.add(expense);
-      }
-    }
-
-    return groupedExpenses;
   }
 
   void _showMonthPicker() {
@@ -389,7 +369,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
@@ -467,7 +448,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         _selectedMonth.month + monthDelta,
       );
       _refreshCounter++;
-      print('ExpensesScreen: _navigateMonth called, new month: $_selectedMonth, counter: $_refreshCounter');
+      print(
+          'ExpensesScreen: _navigateMonth called, new month: $_selectedMonth, counter: $_refreshCounter');
     });
     _loadMySpendingData();
     _loadSixMonthChartData();
@@ -476,7 +458,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   void _refreshScreen() {
     setState(() {
       _refreshCounter++;
-      print('ExpensesScreen: _refreshScreen called, counter is now: $_refreshCounter');
+      print(
+          'ExpensesScreen: _refreshScreen called, counter is now: $_refreshCounter');
     });
     _loadMySpendingData();
     _loadSixMonthChartData();
@@ -487,100 +470,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       symbol: '\$',
       decimalDigits: amount.truncateToDouble() == amount ? 0 : 2,
     ).format(amount);
-  }
-
-  Widget _buildCategoryChip({
-    required String category,
-    required double amount,
-    required Color color,
-    required IconData icon,
-    required double trend,
-    required Expense expense,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                category,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (expense.note != null && expense.note!.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  expense.note!,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Text(
-                    _formatCurrency(amount),
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  if (trend != 0) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      trend > 0 
-                          ? CupertinoIcons.arrow_up
-                          : CupertinoIcons.arrow_down,
-                      size: 10,
-                      color: trend > 0 ? Colors.red : Colors.green,
-                    ),
-                    Text(
-                      '${(trend * 100).abs().toStringAsFixed(1)}%',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: trend > 0 ? Colors.red : Colors.green,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   void _showAddOptions() {
@@ -626,7 +515,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                   ),
                   onTap: () async {
-                    print('ExpensesScreen: Add Expense Tapped in _showAddOptions');
+                    print(
+                        'ExpensesScreen: Add Expense Tapped in _showAddOptions');
                     Navigator.pop(context);
                     await Navigator.push(
                       context,
@@ -721,98 +611,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildExpensePreviewItem(Expense expense) {
-    final formatter = NumberFormat.currency(symbol: '\$');
-    final categoryName = _categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
-    final categoryIcon = _categoryIcons[categoryName] ?? _categoryIcons['Other'] ?? CupertinoIcons.square_grid_2x2;
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (context) => TransactionDetailScreen(
-              expense: expense,
-              expenseService: _expenseService,
-              onExpenseUpdated: _refreshScreen,
-            ),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9F1EC),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                categoryIcon,
-                color: const Color(0xFF1B4332),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    categoryName,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (expense.note != null && expense.note!.isNotEmpty)
-                    Text(
-                      expense.note!,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatter.format(expense.amount),
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM d').format(expense.date),
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    print('ExpensesScreen: build called, selectedMonth: $_selectedMonth, refreshCounter: $_refreshCounter, _isScreenInitialized: $_isScreenInitialized');
+    print(
+        'ExpensesScreen: build called, selectedMonth: $_selectedMonth, refreshCounter: $_refreshCounter, _isScreenInitialized: $_isScreenInitialized');
 
     if (!_isScreenInitialized) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8F9FA),
         body: Center(child: CupertinoActivityIndicator(radius: 16.0)),
-        );
+      );
     }
 
     final formatter = NumberFormat.currency(symbol: '\$');
@@ -821,7 +629,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     // Check if we have a primary wallet
     final primaryWallet = _walletService.getPrimaryWallet();
     print('ExpensesScreen: build - primaryWallet: $primaryWallet');
-    
+
     if (primaryWallet == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
@@ -863,7 +671,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
       );
     }
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -871,19 +679,22 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           key: ValueKey<String>('categories_$_refreshCounter'),
           future: _expenseService.getExpensesByCategory(_selectedMonth),
           builder: (context, snapshot) {
-            print('ExpensesScreen: Categories FutureBuilder (key: categories_$_refreshCounter) - month: $_selectedMonth, state: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, hasError: ${snapshot.hasError}');
-            
+            print(
+                'ExpensesScreen: Categories FutureBuilder (key: categories_$_refreshCounter) - month: $_selectedMonth, state: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, hasError: ${snapshot.hasError}');
+
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
-              print('ExpensesScreen: Error in first FutureBuilder: ${snapshot.error}');
+              print(
+                  'ExpensesScreen: Error in first FutureBuilder: ${snapshot.error}');
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(CupertinoIcons.exclamationmark_circle, size: 48, color: Colors.red),
+                    const Icon(CupertinoIcons.exclamationmark_circle,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
                     Text('Error loading expense categories: ${snapshot.error}'),
                   ],
@@ -891,20 +702,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               );
             }
 
-            final List<CategoryMonthlySummary> categorySummaries = snapshot.data ?? [];
+            final List<CategoryMonthlySummary> categorySummaries =
+                snapshot.data ?? [];
 
             return FutureBuilder<double>(
               key: ValueKey<String>('total_$_refreshCounter'),
               future: _expenseService.getTotalForMonth(_selectedMonth),
               builder: (context, totalSnapshot) {
-                print('ExpensesScreen: Total FutureBuilder (key: total_$_refreshCounter) - month: $_selectedMonth, state: ${totalSnapshot.connectionState}, hasData: ${totalSnapshot.hasData}, hasError: ${totalSnapshot.hasError}');
-                
+                print(
+                    'ExpensesScreen: Total FutureBuilder (key: total_$_refreshCounter) - month: $_selectedMonth, state: ${totalSnapshot.connectionState}, hasData: ${totalSnapshot.hasData}, hasError: ${totalSnapshot.hasError}');
+
                 if (totalSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (totalSnapshot.hasError) {
-                  print('ExpensesScreen: Error in second FutureBuilder: ${totalSnapshot.error}');
+                  print(
+                      'ExpensesScreen: Error in second FutureBuilder: ${totalSnapshot.error}');
                   return Center(child: Text('Error: ${totalSnapshot.error}'));
                 }
 
@@ -916,7 +730,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 final budget = primaryWallet.budget ?? 0.0;
                 final remainingBudget = budget - totalSpent;
 
-                print('ExpensesScreen: totalSpent: $totalSpent, budget: $budget, remainingBudget: $remainingBudget');
+                print(
+                    'ExpensesScreen: totalSpent: $totalSpent, budget: $budget, remainingBudget: $remainingBudget');
 
                 return SingleChildScrollView(
                   child: Column(
@@ -924,7 +739,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     children: [
                       // Header with integrated budget view
                       Container(
-                        padding: const EdgeInsets.fromLTRB(24.0, 24.0, 16.0, 24.0),
+                        padding:
+                            const EdgeInsets.fromLTRB(24.0, 24.0, 16.0, 24.0),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           boxShadow: [
@@ -964,14 +780,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(CupertinoIcons.chevron_left, size: 20),
+                                  icon: const Icon(CupertinoIcons.chevron_left,
+                                      size: 20),
                                   onPressed: () => _navigateMonth(-1),
                                   color: Colors.grey[600],
                                 ),
                                 GestureDetector(
                                   onTap: _showMonthPicker,
                                   child: Text(
-                                    DateFormat('MMMM yyyy').format(_selectedMonth),
+                                    DateFormat('MMMM yyyy')
+                                        .format(_selectedMonth),
                                     style: GoogleFonts.inter(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w500,
@@ -980,12 +798,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 ),
                                 if (!isCurrentMonth)
                                   IconButton(
-                                    icon: const Icon(CupertinoIcons.chevron_right, size: 20),
+                                    icon: const Icon(
+                                        CupertinoIcons.chevron_right,
+                                        size: 20),
                                     onPressed: () => _navigateMonth(1),
                                     color: Colors.grey[600],
                                   ),
-                                if (isCurrentMonth)
-                                  const SizedBox(width: 48),
+                                if (isCurrentMonth) const SizedBox(width: 48),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -1004,7 +823,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Text(
-                                    primaryWallet.budget != null && primaryWallet.budget! > 0
+                                    primaryWallet.budget != null &&
+                                            primaryWallet.budget! > 0
                                         ? 'of ${formatter.format(primaryWallet.budget!)}'
                                         : 'No budget set',
                                     style: GoogleFonts.inter(
@@ -1025,8 +845,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               ),
                               child: FractionallySizedBox(
                                 alignment: Alignment.centerLeft,
-                                widthFactor: primaryWallet.budget != null && primaryWallet.budget! > 0
-                                    ? (totalSpent / primaryWallet.budget!).clamp(0.0, 1.0)
+                                widthFactor: primaryWallet.budget != null &&
+                                        primaryWallet.budget! > 0
+                                    ? (totalSpent / primaryWallet.budget!)
+                                        .clamp(0.0, 1.0)
                                     : 0.0,
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -1042,7 +864,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               child: Row(
                                 children: [
                                   Text(
-                                    primaryWallet.budget != null && primaryWallet.budget! > 0
+                                    primaryWallet.budget != null &&
+                                            primaryWallet.budget! > 0
                                         ? 'You have ${formatter.format(primaryWallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}'
                                         : 'Tap to set a monthly budget',
                                     style: GoogleFonts.inter(
@@ -1066,40 +889,48 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
                       // My Spending Card - NEW
                       Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
+                          boxShadow: [
+                            BoxShadow(
                               color: Colors.grey.withOpacity(0.1),
                               spreadRadius: 1,
                               blurRadius: 5,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
                         child: _isMySpendingLoading
-                            ? const Center(child: SizedBox(height: 100, child: CupertinoActivityIndicator())) // Height matches approx card height
+                            ? const Center(
+                                child: SizedBox(
+                                    height: 100,
+                                    child:
+                                        CupertinoActivityIndicator())) // Height matches approx card height
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                                children: [
                                   Text(
                                     'My Spending',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
                                       color: const Color(0xFF4A4A4A),
                                       fontWeight: FontWeight.normal,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             _formatCurrency(_currentWeekTotal),
@@ -1112,10 +943,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                           const SizedBox(height: 4),
                                           Row(
                                             children: [
-                                              if (_spendingTrend != 0 || _currentWeekTotal > 0) ...[
+                                              if (_spendingTrend != 0 ||
+                                                  _currentWeekTotal > 0) ...[
                                                 Icon(
-                                                  _spendingTrend >= 0 ? CupertinoIcons.arrow_up : CupertinoIcons.arrow_down,
-                                                  color: _spendingTrend >= 0 ? const Color(0xFF34C759) : Colors.red,
+                                                  _spendingTrend >= 0
+                                                      ? CupertinoIcons.arrow_up
+                                                      : CupertinoIcons
+                                                          .arrow_down,
+                                                  color: _spendingTrend >= 0
+                                                      ? const Color(0xFF34C759)
+                                                      : Colors.red,
                                                   size: 14,
                                                 ),
                                                 const SizedBox(width: 2),
@@ -1123,23 +960,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                                   '${(_spendingTrend * 100).abs().toStringAsFixed(1)}% ',
                                                   style: GoogleFonts.inter(
                                                     fontSize: 13,
-                                                    color: _spendingTrend >= 0 ? const Color(0xFF34C759) : Colors.red,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                                    color: _spendingTrend >= 0
+                                                        ? const Color(
+                                                            0xFF34C759)
+                                                        : Colors.red,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
                                                 Text(
                                                   'From last week',
                                                   style: GoogleFonts.inter(
                                                     fontSize: 13,
-                                                    color: const Color(0xFF8E8E93),
-                        ),
-                      ),
+                                                    color:
+                                                        const Color(0xFF8E8E93),
+                                                  ),
+                                                ),
                                               ] else ...[
-                                                 Text(
+                                                Text(
                                                   'No spending last week',
                                                   style: GoogleFonts.inter(
                                                     fontSize: 13,
-                                                    color: const Color(0xFF8E8E93),
+                                                    color:
+                                                        const Color(0xFF8E8E93),
                                                   ),
                                                 ),
                                               ]
@@ -1151,46 +993,93 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                       Container(
                                         padding: const EdgeInsets.only(top: 8),
                                         child: Row(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
                                           children: List.generate(7, (index) {
-                                            final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // Mon to Sun
+                                            final dayLabels = [
+                                              'M',
+                                              'T',
+                                              'W',
+                                              'T',
+                                              'F',
+                                              'S',
+                                              'S'
+                                            ]; // Mon to Sun
                                             final now = DateTime.now();
                                             // DateTime.weekday: 1=Mon, ..., 7=Sun. We want 0=Mon, ..., 6=Sun for index.
-                                            final int currentDayIndex = now.weekday - 1; 
-                                            final bool isCurrentDay = index == currentDayIndex;
-                                            final String dailyTotalStr = _dailyTotalsForChart.isNotEmpty && index < _dailyTotalsForChart.length ? _dailyTotalsForChart[index].toStringAsFixed(2) : 'N/A';
+                                            final int currentDayIndex =
+                                                now.weekday - 1;
+                                            final bool isCurrentDay =
+                                                index == currentDayIndex;
+                                            final String dailyTotalStr =
+                                                _dailyTotalsForChart
+                                                            .isNotEmpty &&
+                                                        index <
+                                                            _dailyTotalsForChart
+                                                                .length
+                                                    ? _dailyTotalsForChart[
+                                                            index]
+                                                        .toStringAsFixed(2)
+                                                    : 'N/A';
 
                                             // Log the values for each bar being generated
-                                            print('MySpendingChart: index=$index (${dayLabels[index]}), currentDayRaw=${now.weekday}, currentDayIndexCalcd=$currentDayIndex, isCurrent=$isCurrentDay, total=$dailyTotalStr');
+                                            print(
+                                                'MySpendingChart: index=$index (${dayLabels[index]}), currentDayRaw=${now.weekday}, currentDayIndexCalcd=$currentDayIndex, isCurrent=$isCurrentDay, total=$dailyTotalStr');
 
-                                            final double maxBarHeight = 22.0;
+                                            const double maxBarHeight = 22.0;
                                             double barHeight = 0;
-                                            if (_dailyTotalsForChart.isNotEmpty && _dailyTotalsForChart.any((d) => d > 0)) {
-                                              final double maxDailySpending = _dailyTotalsForChart.reduce((a, b) => a > b ? a : b);
+                                            if (_dailyTotalsForChart
+                                                    .isNotEmpty &&
+                                                _dailyTotalsForChart
+                                                    .any((d) => d > 0)) {
+                                              final double maxDailySpending =
+                                                  _dailyTotalsForChart.reduce(
+                                                      (a, b) => a > b ? a : b);
                                               if (maxDailySpending > 0) {
-                                                barHeight = (_dailyTotalsForChart[index] / maxDailySpending) * maxBarHeight;
+                                                barHeight =
+                                                    (_dailyTotalsForChart[
+                                                                index] /
+                                                            maxDailySpending) *
+                                                        maxBarHeight;
                                               }
                                             }
                                             // Ensure barHeight is not NaN and is at least a minimal visible height if > 0
-                                            barHeight = barHeight.isNaN ? 0 : barHeight;
-                                            if (_dailyTotalsForChart[index] > 0 && barHeight < 2) barHeight = 2;
-
+                                            barHeight =
+                                                barHeight.isNaN ? 0 : barHeight;
+                                            if (_dailyTotalsForChart[index] >
+                                                    0 &&
+                                                barHeight < 2) barHeight = 2;
 
                                             return Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 3.0),
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                      Container(
+                                                  Container(
                                                     height: barHeight,
                                                     width: 8,
                                                     decoration: BoxDecoration(
-                                                      color: isCurrentDay 
-                                                          ? const Color(0xFF34C759) // Brighter/solid for current day
-                                                          : (_dailyTotalsForChart.isNotEmpty && _dailyTotalsForChart[index] > 0 
-                                                              ? const Color(0xFF34C759).withOpacity(0.6) // Slightly more opaque for days with spending
-                                                              : const Color(0xFF34C759).withOpacity(0.25)), // Default for no spending
-                                                      borderRadius: BorderRadius.circular(2),
+                                                      color: isCurrentDay
+                                                          ? const Color(
+                                                              0xFF34C759) // Brighter/solid for current day
+                                                          : (_dailyTotalsForChart
+                                                                      .isNotEmpty &&
+                                                                  _dailyTotalsForChart[
+                                                                          index] >
+                                                                      0
+                                                              ? const Color(
+                                                                      0xFF34C759)
+                                                                  .withOpacity(
+                                                                      0.6) // Slightly more opaque for days with spending
+                                                              : const Color(
+                                                                      0xFF34C759)
+                                                                  .withOpacity(
+                                                                      0.25)), // Default for no spending
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              2),
                                                     ),
                                                   ),
                                                   const SizedBox(height: 6),
@@ -1198,8 +1087,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                                     dayLabels[index],
                                                     style: GoogleFonts.inter(
                                                       fontSize: 12,
-                                                      color: isCurrentDay ? const Color(0xFF1C1C1E) : const Color(0xFF8E8E93), // Darker for current day label
-                                                      fontWeight: isCurrentDay ? FontWeight.w600 : FontWeight.normal, // Bolder for current day label
+                                                      color: isCurrentDay
+                                                          ? const Color(
+                                                              0xFF1C1C1E)
+                                                          : const Color(
+                                                              0xFF8E8E93), // Darker for current day label
+                                                      fontWeight: isCurrentDay
+                                                          ? FontWeight.w600
+                                                          : FontWeight
+                                                              .normal, // Bolder for current day label
                                                     ),
                                                   ),
                                                 ],
@@ -1217,7 +1113,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
                       // New "Expense" Card with Line Chart and Category List
                       Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 20),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -1236,23 +1133,26 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           children: [
                             // Header Row
                             Padding(
-                              padding: const EdgeInsets.only(top: 16.0, bottom: 0.0),
+                              padding:
+                                  const EdgeInsets.only(top: 16.0, bottom: 0.0),
                               child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
                                         'Expense',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontFamily: 'Inter',
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,
                                           color: Color(0xFF3C3C43),
-                                  ),
-                                ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '-${_formatCurrency(totalSpent.abs())}',
@@ -1261,14 +1161,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                           fontSize: 24,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF1C1C1E),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                                   GestureDetector(
                                     onTap: _showMonthPicker,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(16),
@@ -1278,10 +1179,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                         ),
                                       ),
                                       child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                            DateFormat('MMM yyyy').format(_selectedMonth),
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            DateFormat('MMM yyyy')
+                                                .format(_selectedMonth),
                                             style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 14,
@@ -1290,170 +1192,257 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                             ),
                                           ),
                                           const SizedBox(width: 4),
-                                          const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF3C3C43)),
+                                          const Icon(Icons.keyboard_arrow_down,
+                                              size: 18,
+                                              color: Color(0xFF3C3C43)),
                                         ],
                                       ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             const SizedBox(height: 16),
 
                             // Line/Area Chart - Placeholder or Real Data
                             _isSixMonthChartLoading
-                              ? const SizedBox(
-                                  height: 120, // Match chart height
-                                  child: Center(child: CupertinoActivityIndicator()),
-                                )
-                              : Container(
-                                  height: 120,
-                                  padding: const EdgeInsets.only(top: 8, bottom: 0, right: 16, left: 8),
-                                  child: _sixMonthChartSpots.isEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'No spending data for chart.',
-                                          style: GoogleFonts.inter(color: Colors.grey[600]),
-                                        ),
-                                      )
-                                    : LineChart(
-                                        LineChartData(
-                                          gridData: FlGridData(show: false),
-                                          titlesData: FlTitlesData(
-                                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                            bottomTitles: AxisTitles(
-                                              sideTitles: SideTitles(
-                                                showTitles: true,
-                                                reservedSize: 30,
-                                                interval: 1, // Show all month labels
-                                                getTitlesWidget: (double value, TitleMeta meta) {
-                                                  final style = const TextStyle(
-                                                    fontFamily: 'Inter',
-                                                    color: Color(0xFF8E8E93),
-                                                    fontWeight: FontWeight.w400,
-                                                    fontSize: 12,
-                                                  );
-                                                  // value corresponds to the index in _sixMonthChartLabels
-                                                  final index = value.toInt();
-                                                  if (index >= 0 && index < _sixMonthChartLabels.length) {
-                                                    return Padding(
-                                                      padding: const EdgeInsets.only(top: 6.0),
-                                                      child: Text(_sixMonthChartLabels[index], style: style, textAlign: TextAlign.center),
-                                                    );
-                                                  }
-                                                  return const Text('');
-                                                },
-                                              ),
+                                ? const SizedBox(
+                                    height: 120, // Match chart height
+                                    child: Center(
+                                        child: CupertinoActivityIndicator()),
+                                  )
+                                : Container(
+                                    height: 120,
+                                    padding: const EdgeInsets.only(
+                                        top: 8, bottom: 0, right: 16, left: 8),
+                                    child: _sixMonthChartSpots.isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'No spending data for chart.',
+                                              style: GoogleFonts.inter(
+                                                  color: Colors.grey[600]),
                                             ),
-                                          ),
-                                          borderData: FlBorderData(show: false),
-                                          minX: 0,
-                                          // maxX should be the number of spots - 1
-                                          maxX: _sixMonthChartSpots.isNotEmpty ? (_sixMonthChartSpots.length - 1).toDouble() : 0,
-                                          minY: 0,
-                                          maxY: _maxSixMonthSpending, // NEW: Use new max Y value
-                                          lineBarsData: [
-                                            LineChartBarData(
-                                              spots: _sixMonthChartSpots, // NEW: Use new spots list
-                                              isCurved: true,
-                                              curveSmoothness: 0.35, // Smooth curve
-                                              color: const Color(0xFF34C759),
-                                              barWidth: 2.5,
-                                              isStrokeCapRound: true,
-                                              dotData: FlDotData(
-                                                show: true,
-                                                getDotPainter: (spot, percent, barData, index) {
-                                                  // Highlight the last dot (current month)
-                                                  final isLastDot = index == _sixMonthChartSpots.length - 1;
-                                                  return FlDotCirclePainter(
-                                                    radius: isLastDot ? 4 : 3,
-                                                    color: const Color(0xFF34C759).withOpacity(isLastDot ? 1.0 : 0.8),
-                                                    strokeWidth: isLastDot ? 1 : 0,
-                                                    strokeColor: Colors.white,
-                                                  );
-                                                },
-                                              ),
-                                              belowBarData: BarAreaData(
-                                                show: true,
-                                                gradient: LinearGradient(
-                                                  colors: [
-                                                    const Color(0xFF34C759).withOpacity(0.4),
-                                                    const Color(0xFF34C759).withOpacity(0.1),
-                                                  ],
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                ),
-                                  ),
-                                ),
-                              ],
-                                          lineTouchData: LineTouchData(
-                                            handleBuiltInTouches: true,
-                                            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-                                              return spotIndexes.map((index) {
-                                                return TouchedSpotIndicatorData(
-                                                  const FlLine(
-                                                    color: Color(0xFFD1D1D6),
-                                                    strokeWidth: 1,
+                                          )
+                                        : LineChart(
+                                            LineChartData(
+                                              gridData:
+                                                  const FlGridData(show: false),
+                                              titlesData: FlTitlesData(
+                                                leftTitles: const AxisTitles(
+                                                    sideTitles: SideTitles(
+                                                        showTitles: false)),
+                                                topTitles: const AxisTitles(
+                                                    sideTitles: SideTitles(
+                                                        showTitles: false)),
+                                                rightTitles: const AxisTitles(
+                                                    sideTitles: SideTitles(
+                                                        showTitles: false)),
+                                                bottomTitles: AxisTitles(
+                                                  sideTitles: SideTitles(
+                                                    showTitles: true,
+                                                    reservedSize: 30,
+                                                    interval:
+                                                        1, // Show all month labels
+                                                    getTitlesWidget:
+                                                        (double value,
+                                                            TitleMeta meta) {
+                                                      const style = TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        color:
+                                                            Color(0xFF8E8E93),
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        fontSize: 12,
+                                                      );
+                                                      // value corresponds to the index in _sixMonthChartLabels
+                                                      final index =
+                                                          value.toInt();
+                                                      if (index >= 0 &&
+                                                          index <
+                                                              _sixMonthChartLabels
+                                                                  .length) {
+                                                        return Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  top: 6.0),
+                                                          child: Text(
+                                                              _sixMonthChartLabels[
+                                                                  index],
+                                                              style: style,
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center),
+                                                        );
+                                                      }
+                                                      return const Text('');
+                                                    },
                                                   ),
-                                                  FlDotData(
-                                                    getDotPainter: (spot, percent, barData, index) {
+                                                ),
+                                              ),
+                                              borderData:
+                                                  FlBorderData(show: false),
+                                              minX: 0,
+                                              // maxX should be the number of spots - 1
+                                              maxX:
+                                                  _sixMonthChartSpots.isNotEmpty
+                                                      ? (_sixMonthChartSpots
+                                                                  .length -
+                                                              1)
+                                                          .toDouble()
+                                                      : 0,
+                                              minY: 0,
+                                              maxY:
+                                                  _maxSixMonthSpending, // NEW: Use new max Y value
+                                              lineBarsData: [
+                                                LineChartBarData(
+                                                  spots:
+                                                      _sixMonthChartSpots, // NEW: Use new spots list
+                                                  isCurved: true,
+                                                  curveSmoothness:
+                                                      0.35, // Smooth curve
+                                                  color:
+                                                      const Color(0xFF34C759),
+                                                  barWidth: 2.5,
+                                                  isStrokeCapRound: true,
+                                                  dotData: FlDotData(
+                                                    show: true,
+                                                    getDotPainter: (spot,
+                                                        percent,
+                                                        barData,
+                                                        index) {
+                                                      // Highlight the last dot (current month)
+                                                      final isLastDot = index ==
+                                                          _sixMonthChartSpots
+                                                                  .length -
+                                                              1;
                                                       return FlDotCirclePainter(
-                                                        radius: 4,
-                                                        color: const Color(0xFF34C759),
-                                                        strokeWidth: 1,
-                                                        strokeColor: Colors.white,
+                                                        radius:
+                                                            isLastDot ? 4 : 3,
+                                                        color: const Color(
+                                                                0xFF34C759)
+                                                            .withOpacity(
+                                                                isLastDot
+                                                                    ? 1.0
+                                                                    : 0.8),
+                                                        strokeWidth:
+                                                            isLastDot ? 1 : 0,
+                                                        strokeColor:
+                                                            Colors.white,
                                                       );
                                                     },
                                                   ),
-                                                );
-                                              }).toList();
-                                            },
-                                            touchTooltipData: LineTouchTooltipData(
-                                              tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              tooltipMargin: 8,
-                                              fitInsideHorizontally: true,
-                                              fitInsideVertically: true,
-                                              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                                                return touchedBarSpots.map((barSpot) {
-                                                  // Get month name from _sixMonthChartLabels using barSpot.spotIndex
-                                                  final monthIndex = barSpot.spotIndex;
-                                                  String monthName = '';
-                                                  if (monthIndex >= 0 && monthIndex < _sixMonthChartLabels.length) {
-                                                    monthName = _sixMonthChartLabels[monthIndex];
-                                                  }
-                                                  return LineTooltipItem(
-                                                    '$monthName: ${_formatCurrency(barSpot.y)}', // Show month name in tooltip
-                                                    const TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: Colors.black,
+                                                  belowBarData: BarAreaData(
+                                                    show: true,
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        const Color(0xFF34C759)
+                                                            .withOpacity(0.4),
+                                                        const Color(0xFF34C759)
+                                                            .withOpacity(0.1),
+                                                      ],
+                                                      begin:
+                                                          Alignment.topCenter,
+                                                      end: Alignment
+                                                          .bottomCenter,
                                                     ),
-                                                  );
-                                                }).toList();
-                                              },
+                                                  ),
+                                                ),
+                                              ],
+                                              lineTouchData: LineTouchData(
+                                                handleBuiltInTouches: true,
+                                                getTouchedSpotIndicator:
+                                                    (LineChartBarData barData,
+                                                        List<int> spotIndexes) {
+                                                  return spotIndexes
+                                                      .map((index) {
+                                                    return TouchedSpotIndicatorData(
+                                                      const FlLine(
+                                                        color:
+                                                            Color(0xFFD1D1D6),
+                                                        strokeWidth: 1,
+                                                      ),
+                                                      FlDotData(
+                                                        getDotPainter: (spot,
+                                                            percent,
+                                                            barData,
+                                                            index) {
+                                                          return FlDotCirclePainter(
+                                                            radius: 4,
+                                                            color: const Color(
+                                                                0xFF34C759),
+                                                            strokeWidth: 1,
+                                                            strokeColor:
+                                                                Colors.white,
+                                                          );
+                                                        },
+                                                      ),
+                                                    );
+                                                  }).toList();
+                                                },
+                                                touchTooltipData:
+                                                    LineTouchTooltipData(
+                                                  tooltipPadding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4),
+                                                  tooltipMargin: 8,
+                                                  fitInsideHorizontally: true,
+                                                  fitInsideVertically: true,
+                                                  getTooltipItems:
+                                                      (List<LineBarSpot>
+                                                          touchedBarSpots) {
+                                                    return touchedBarSpots
+                                                        .map((barSpot) {
+                                                      // Get month name from _sixMonthChartLabels using barSpot.spotIndex
+                                                      final monthIndex =
+                                                          barSpot.spotIndex;
+                                                      String monthName = '';
+                                                      if (monthIndex >= 0 &&
+                                                          monthIndex <
+                                                              _sixMonthChartLabels
+                                                                  .length) {
+                                                        monthName =
+                                                            _sixMonthChartLabels[
+                                                                monthIndex];
+                                                      }
+                                                      return LineTooltipItem(
+                                                        '$monthName: ${_formatCurrency(barSpot.y)}', // Show month name in tooltip
+                                                        const TextStyle(
+                                                          fontFamily: 'Inter',
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: Colors.black,
+                                                        ),
+                                                      );
+                                                    }).toList();
+                                                  },
+                                                ),
+                                                touchCallback:
+                                                    (FlTouchEvent event,
+                                                        LineTouchResponse?
+                                                            touchResponse) {
+                                                  // Handle touch events if needed
+                                                },
+                                              ),
                                             ),
-                                            touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
-                                              // Handle touch events if needed
-                                            },
                                           ),
-                                        ),
-                                      ),
-                            ),
+                                  ),
                             const SizedBox(height: 12),
 
                             // Row for "Categories" title and "View All" button
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                  Text(
+                                children: [
+                                  const Text(
                                     'Categories',
-                                    style: const TextStyle( 
+                                    style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -1465,7 +1454,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => RecentExpensesScreen(
+                                          builder: (context) =>
+                                              RecentExpensesScreen(
                                             expenseService: _expenseService,
                                           ),
                                         ),
@@ -1474,7 +1464,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     style: TextButton.styleFrom(
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                       alignment: Alignment.centerRight,
                                     ),
                                     child: Row(
@@ -1493,37 +1484,42 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                           CupertinoIcons.arrow_right_circle,
                                           size: 16,
                                           color: Color(0xFF1B4332),
-                                      ),
-                                  ],
-                                ),
-                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                             // Display real category data or a message if no expenses
                             if (categorySummaries.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24.0),
                                 child: Center(
-                              child: Text(
+                                  child: Text(
                                     'No expenses for ${DateFormat('MMMM').format(_selectedMonth)} yet.',
-                                style: GoogleFonts.inter(
+                                    style: GoogleFonts.inter(
                                       fontSize: 15,
                                       color: Colors.grey[600],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
                               )
                             else
                               ...categorySummaries.map((summary) {
-                                return _buildCategoryListItem(summary.categoryId, summary.categoryName, summary.totalAmount);
+                                return _buildCategoryListItem(
+                                    summary.categoryId,
+                                    summary.categoryName,
+                                    summary.totalAmount);
                               }).toList(),
                           ],
                         ),
                       ),
                       // END New "Expense" Card
 
-                      const SizedBox(height: 80), // Added smaller SizedBox for FAB spacing
+                      const SizedBox(
+                          height: 80), // Added smaller SizedBox for FAB spacing
                     ],
                   ),
                 );
@@ -1563,13 +1559,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
-          label: Row(
+          label: const Row(
             children: [
-              const Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
+              Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 16),
+              SizedBox(width: 8),
               Text(
                 'Scan Receipt',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Inter',
                   color: Colors.white,
                   fontSize: 14,
@@ -1584,13 +1580,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   // Helper method for category list item (NEW - add this at the end of the class or in a helpers file)
-  Widget _buildCategoryListItem(String categoryId, String categoryName, double amount) {
-    final categoryIcon = _categoryIcons[categoryName] ?? _categoryIcons['Other'] ?? CupertinoIcons.square_grid_2x2;
+  Widget _buildCategoryListItem(
+      String categoryId, String categoryName, double amount) {
+    final categoryIcon = _categoryIcons[categoryName] ??
+        _categoryIcons['Other'] ??
+        CupertinoIcons.square_grid_2x2;
 
     return InkWell(
       onTap: () async {
-        final List<Expense> expensesForMonth = await _expenseService.getExpensesForMonth(_selectedMonth);
-        final List<Expense> categorySpecificExpenses = expensesForMonth.where((expense) => expense.categoryId == categoryId).toList();
+        final List<Expense> expensesForMonth =
+            await _expenseService.getExpensesForMonth(_selectedMonth);
+        final List<Expense> categorySpecificExpenses = expensesForMonth
+            .where((expense) => expense.categoryId == categoryId)
+            .toList();
 
         if (categorySpecificExpenses.length == 1) {
           if (!mounted) return;
@@ -1652,4 +1654,4 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
     );
   }
-} 
+}

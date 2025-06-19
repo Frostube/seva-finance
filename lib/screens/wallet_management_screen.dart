@@ -16,10 +16,11 @@ class WalletManagementScreen extends StatelessWidget {
       body: Consumer<WalletService>(
         builder: (context, walletService, child) {
           final wallets = walletService.wallets;
-          
+
           if (wallets.isEmpty) {
             return const Center(
-              child: Text('No wallets yet. Create one by tapping the + button.'),
+              child:
+                  Text('No wallets yet. Create one by tapping the + button.'),
             );
           }
 
@@ -42,8 +43,7 @@ class WalletManagementScreen extends StatelessWidget {
                             builder: (context) => EditWalletScreen(
                               wallet: wallet,
                               onWalletUpdated: () {
-                                // Refresh the wallet list
-                                Provider.of<WalletService>(context, listen: false).notifyListeners();
+                                // UI will automatically refresh via Consumer
                               },
                             ),
                           ),
@@ -57,7 +57,8 @@ class WalletManagementScreen extends StatelessWidget {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Delete Wallet'),
-                            content: Text('Are you sure you want to delete ${wallet.name}?'),
+                            content: Text(
+                                'Are you sure you want to delete ${wallet.name}?'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
@@ -102,8 +103,7 @@ class WalletManagementScreen extends StatelessWidget {
               builder: (context) => EditWalletScreen(
                 wallet: newWallet,
                 onWalletUpdated: () {
-                  // Refresh the wallet list
-                  Provider.of<WalletService>(context, listen: false).notifyListeners();
+                  // UI will automatically refresh via Consumer
                 },
               ),
             ),
@@ -113,4 +113,4 @@ class WalletManagementScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

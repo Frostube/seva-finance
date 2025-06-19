@@ -222,7 +222,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
             const SizedBox(width: 4),
             const Icon(
               CupertinoIcons.chevron_down,
-              color: const Color(0xFF1B4332),
+              color: Color(0xFF1B4332),
               size: 14,
             ),
           ],

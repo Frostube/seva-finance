@@ -41,13 +41,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
   bool _isScreenLoading = true;
 
+
   @override
   void initState() {
     super.initState();
     _initializeAsyncDependencies();
-    
+
     // Listen for wallet changes
-    _walletBoxSubscription = Hive.box<Wallet>('wallets').watch().listen((event) {
+    _walletBoxSubscription =
+        Hive.box<Wallet>('wallets').watch().listen((event) {
       _loadWallets();
     });
   }
@@ -90,13 +92,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     _loadWallets();
-    
+
     if (mounted) {
       setState(() {
         _isScreenLoading = false;
-    });
+      });
     }
-    print('DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: \$_isScreenLoading');
+    print(
+        'DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: \$_isScreenLoading');
   }
 
   @override
@@ -145,7 +148,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 top: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -203,7 +207,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   NumberFormat.currency(
                     symbol: '\$',
-                    decimalDigits: wallet.balance.truncateToDouble() == wallet.balance ? 0 : 2,
+                    decimalDigits:
+                        wallet.balance.truncateToDouble() == wallet.balance
+                            ? 0
+                            : 2,
                   ).format(wallet.balance),
                   style: GoogleFonts.inter(
                     fontSize: 32,
@@ -216,7 +223,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     'Budget: ${NumberFormat.currency(
                       symbol: '\$',
-                      decimalDigits: wallet.budget!.truncateToDouble() == wallet.budget ? 0 : 2,
+                      decimalDigits:
+                          wallet.budget!.truncateToDouble() == wallet.budget
+                              ? 0
+                              : 2,
                     ).format(wallet.budget!)}',
                     style: GoogleFonts.inter(
                       fontSize: 12,
@@ -268,7 +278,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext bottomSheetContext) => SetSpendingAlertSheet(
         walletId: wallet.id,
-        savingsService: Provider.of<SpendingAlertService>(context, listen: false),
+        savingsService:
+            Provider.of<SpendingAlertService>(context, listen: false),
         onAlertAdded: () {
           // First close the bottom sheet
           Navigator.pop(bottomSheetContext);
@@ -296,8 +307,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(
         builder: (context) => GoalsAndAlertsScreen(
           walletId: wallet.id,
-          spendingAlertService: Provider.of<SpendingAlertService>(context, listen: false),
-          savingsGoalService: Provider.of<SavingsGoalService>(context, listen: false),
+          spendingAlertService:
+              Provider.of<SpendingAlertService>(context, listen: false),
+          savingsGoalService:
+              Provider.of<SavingsGoalService>(context, listen: false),
         ),
       ),
     );
@@ -349,11 +362,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('DashboardScreen: build called, _isScreenLoading: \$_isScreenLoading'); 
+    print(
+        'DashboardScreen: build called, _isScreenLoading: \$_isScreenLoading');
     if (_isScreenLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white, 
-        body: Center(child: CircularProgressIndicator(color: AppTheme.darkGreen)), 
+        backgroundColor: Colors.white,
+        body:
+            Center(child: CircularProgressIndicator(color: AppTheme.darkGreen)),
       );
     }
 
@@ -385,10 +400,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         .get(),
                                     builder: (context, snapshot) {
                                       String firstName = 'User';
-                                      if (snapshot.hasData && snapshot.data != null) {
-                                        final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                                        if (userData != null && userData['name'] != null) {
-                                          firstName = _getFirstName(userData['name']);
+                                      if (snapshot.hasData &&
+                                          snapshot.data != null) {
+                                        final userData = snapshot.data!.data()
+                                            as Map<String, dynamic>?;
+                                        if (userData != null &&
+                                            userData['name'] != null) {
+                                          firstName =
+                                              _getFirstName(userData['name']);
                                         }
                                       }
                                       return Text(
@@ -422,14 +441,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const NotificationsScreen(),
+                                      builder: (context) =>
+                                          const NotificationsScreen(),
                                     ),
                                   );
                                 },
                               ),
                               Consumer<NotificationService>(
                                 builder: (context, notificationService, child) {
-                                  return notificationService.hasUnreadNotifications
+                                  return notificationService
+                                          .hasUnreadNotifications
                                       ? Positioned(
                                           right: 12,
                                           top: 12,
@@ -494,9 +515,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           ..._wallets.map((wallet) => Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: _buildWalletCard(wallet),
-                          )),
+                                padding: const EdgeInsets.only(right: 16),
+                                child: _buildWalletCard(wallet),
+                              )),
                           _buildAddCard(context),
                         ],
                       ),
@@ -509,31 +530,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _wallets.isNotEmpty 
-                                ? () => _showAddGoalSheet(_wallets.first)
-                                : () => _showNoWalletDialog(),
+                              onPressed: _wallets.isNotEmpty
+                                  ? () => _showAddGoalSheet(_wallets.first)
+                                  : () => _showNoWalletDialog(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.darkGreen,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(CupertinoIcons.money_dollar_circle, size: 20),
+                              icon: const Icon(
+                                  CupertinoIcons.money_dollar_circle,
+                                  size: 20),
                               label: const Text('Goal'),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _wallets.isNotEmpty 
-                                ? () => _showAddAlertSheet(_wallets.first)
-                                : () => _showNoWalletDialog(),
+                              onPressed: _wallets.isNotEmpty
+                                  ? () => _showAddAlertSheet(_wallets.first)
+                                  : () => _showNoWalletDialog(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.paleGreen,
                                 foregroundColor: AppTheme.darkGreen,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -556,9 +581,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 CupertinoIcons.list_bullet,
                                 color: AppTheme.darkGreen,
                               ),
-                              onPressed: _wallets.isNotEmpty 
-                                ? () => _navigateToGoalsAndAlerts(_wallets.first)
-                                : () => _showNoWalletDialog(),
+                              onPressed: _wallets.isNotEmpty
+                                  ? () =>
+                                      _navigateToGoalsAndAlerts(_wallets.first)
+                                  : () => _showNoWalletDialog(),
                             ),
                           ),
                         ],
@@ -610,7 +636,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             for (var entry in groupedExpenses.entries)
               if (entry.value.isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: Text(
                     entry.key,
                     style: const TextStyle(
@@ -620,7 +647,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-                ...entry.value.take(3).map((expense) => ExpenseTile(expense: expense)),
+                ...entry.value
+                    .take(3)
+                    .map((expense) => ExpenseTile(expense: expense)),
               ],
           ],
         );
@@ -632,7 +661,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LinkedCardsScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LinkedCardsScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -681,4 +711,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-} 
+}

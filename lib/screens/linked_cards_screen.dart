@@ -201,8 +201,7 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          0, 0, 0, MediaQuery.of(sheetCtx).viewInsets.bottom
-        ),
+            0, 0, 0, MediaQuery.of(sheetCtx).viewInsets.bottom),
         child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -254,18 +253,43 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                           createdAt: DateTime.now(),
                           colorValue: const Color(0xFF1E1E1E).value,
                         );
-                        await _walletService.addWallet(newWallet);
-                        _loadWallets();
-                        Navigator.pop(sheetCtx); // Close the bottom sheet
-                        // Navigate to Edit Wallet screen using parent context
-                        Navigator.of(parentContext).push(
-                          MaterialPageRoute(
-                            builder: (_) => EditWalletScreen(
-                              wallet: newWallet,
-                              onWalletUpdated: _loadWallets,
-                            ),
-                          ),
-                        );
+
+                        try {
+                          await _walletService.addWallet(newWallet);
+                          _loadWallets();
+
+                          // Check if the sheet context is still valid before popping
+                          if (Navigator.canPop(sheetCtx)) {
+                            Navigator.pop(sheetCtx); // Close the bottom sheet
+                          }
+
+                          // Navigate to Edit Wallet screen using parent context
+                          if (mounted) {
+                            Navigator.of(parentContext).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditWalletScreen(
+                                  wallet: newWallet,
+                                  onWalletUpdated: _loadWallets,
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          // Handle error and close bottom sheet safely
+                          if (Navigator.canPop(sheetCtx)) {
+                            Navigator.pop(sheetCtx);
+                          }
+
+                          // Show error message if context is still valid
+                          if (mounted) {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text('Error creating wallet: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       }
                     },
                   ),
@@ -365,7 +389,8 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                 top: 16,
                 right: 16,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -437,7 +462,10 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                   Text(
                     NumberFormat.currency(
                       symbol: '\$',
-                      decimalDigits: wallet.balance.truncateToDouble() == wallet.balance ? 0 : 2,
+                      decimalDigits:
+                          wallet.balance.truncateToDouble() == wallet.balance
+                              ? 0
+                              : 2,
                     ).format(wallet.balance),
                     style: GoogleFonts.inter(
                       fontSize: 32,
@@ -450,7 +478,10 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                     Text(
                       'Budget: ${NumberFormat.currency(
                         symbol: '\$',
-                        decimalDigits: wallet.budget!.truncateToDouble() == wallet.budget ? 0 : 2,
+                        decimalDigits:
+                            wallet.budget!.truncateToDouble() == wallet.budget
+                                ? 0
+                                : 2,
                       ).format(wallet.budget!)}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
@@ -557,9 +588,7 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
                 ),
               ),
             ),
-
           const SizedBox(height: 32),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -619,4 +648,4 @@ class _LinkedCardsScreenState extends State<LinkedCardsScreen> {
       ),
     );
   }
-} 
+}

@@ -7,11 +7,9 @@ import '../services/expense_service.dart';
 import 'transaction_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:hive/hive.dart';
-import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../services/category_service.dart';
 
 class RecentExpensesScreen extends StatefulWidget {

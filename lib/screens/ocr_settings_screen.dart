@@ -290,7 +290,7 @@ class _OcrSettingsScreenState extends State<OcrSettingsScreen> {
       trailing: CupertinoSwitch(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF1B4332),
+        activeTrackColor: const Color(0xFF1B4332),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     );

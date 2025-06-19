@@ -30,35 +30,45 @@ import 'services/savings_goal_service.dart';
 import 'services/spending_alert_service.dart';
 import 'services/category_service.dart';
 import 'services/ocr_settings_service.dart';
+import 'services/onboarding_service.dart';
 import 'models/ocr_settings.dart';
+import 'models/user_onboarding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Initialize Firebase Crashlytics (skip for web)
   if (!kIsWeb) {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
   }
-  
+
   // Initialize Hive
   await Hive.initFlutter();
-  Hive.registerAdapter(WalletAdapter());
-  Hive.registerAdapter(ExpenseAdapter());
-  Hive.registerAdapter(SavingsGoalAdapter());
-  Hive.registerAdapter(SpendingAlertAdapter());
-  Hive.registerAdapter(AlertTypeAdapter());
-  Hive.registerAdapter(AppNotificationAdapter());
-  Hive.registerAdapter(NotificationTypeAdapter());
-  Hive.registerAdapter(ExpenseCategoryAdapter());
-  Hive.registerAdapter(OcrSettingsAdapter());
-  Hive.registerAdapter(OcrModeAdapter());
-  Hive.registerAdapter(DateFallbackAdapter());
-  
+
+  // Register adapters with duplicate protection
+  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(WalletAdapter());
+  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(ExpenseAdapter());
+  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(SavingsGoalAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(SpendingAlertAdapter());
+  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(AlertTypeAdapter());
+  if (!Hive.isAdapterRegistered(7))
+    Hive.registerAdapter(AppNotificationAdapter());
+  if (!Hive.isAdapterRegistered(6))
+    Hive.registerAdapter(NotificationTypeAdapter());
+  if (!Hive.isAdapterRegistered(2))
+    Hive.registerAdapter(ExpenseCategoryAdapter());
+  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(OcrSettingsAdapter());
+  if (!Hive.isAdapterRegistered(8)) Hive.registerAdapter(OcrModeAdapter());
+  if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(DateFallbackAdapter());
+  if (!Hive.isAdapterRegistered(11))
+    Hive.registerAdapter(UserOnboardingAdapter());
+
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
   await Hive.openBox<double>('budget');
@@ -67,7 +77,8 @@ void main() async {
   await Hive.openBox<AppNotification>('notifications');
   await Hive.openBox<ExpenseCategory>('expense_categories');
   await Hive.openBox<OcrSettings>('ocr_settings_box');
-  
+  await Hive.openBox<UserOnboarding>('user_onboarding');
+
   runApp(const MyApp());
 }
 
@@ -77,7 +88,7 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    
+
     return StreamBuilder<User?>(
       stream: authService.userStream,
       builder: (context, snapshot) {
@@ -88,11 +99,11 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-        
+
         if (snapshot.hasData) {
           return const MainScreen();
         }
-        
+
         return const WelcomeScreen();
       },
     );
@@ -125,7 +136,7 @@ class MyApp extends StatelessWidget {
         Provider<FirebaseRemoteConfig>(
           create: (_) => FirebaseRemoteConfig.instance,
         ),
-        
+
         // App Services
         ChangeNotifierProvider(
           create: (_) => StorageService(),
@@ -138,10 +149,22 @@ class MyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
+          create: (context) => AuthService(
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => CategoryService(
+            Hive.box<ExpenseCategory>('expense_categories'),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Hive.box<Expense>('expenses'),
+          ),
+        ),
+        ChangeNotifierProvider(
           create: (context) => WalletService(
             Hive.box<Wallet>('wallets'),
             Provider.of<FirebaseFirestore>(context, listen: false),
-            Provider.of<FirebaseStorage>(context, listen: false),
             Provider.of<NotificationService>(context, listen: false),
           ),
         ),
@@ -153,7 +176,7 @@ class MyApp extends StatelessWidget {
             Provider.of<FirebaseFirestore>(context, listen: false),
             Provider.of<CategoryService>(context, listen: false),
           ),
-        ), 
+        ),
         ChangeNotifierProvider<SpendingAlertService>(
           create: (context) => SpendingAlertService(
             Hive.box<SpendingAlert>('spending_alerts'),
@@ -171,21 +194,15 @@ class MyApp extends StatelessWidget {
             Provider.of<FirebaseFirestore>(context, listen: false),
           ),
         ),
-        ChangeNotifierProvider(
-          create: (context) => AuthService(
-            Provider.of<FirebaseAuth>(context, listen: false),
-            Provider.of<FirebaseFirestore>(context, listen: false),
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => CategoryService(
-            Hive.box<ExpenseCategory>('expense_categories'),
-            Provider.of<FirebaseFirestore>(context, listen: false),
-            Hive.box<Expense>('expenses'),
-          ),
-        ),
         ChangeNotifierProvider<OcrSettingsService>(
           create: (context) => OcrSettingsService(),
+        ),
+        ChangeNotifierProvider<OnboardingService>(
+          create: (context) => OnboardingService(
+            Hive.box<UserOnboarding>('user_onboarding'),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<AuthService>(context, listen: false),
+          ),
         ),
       ],
       child: MaterialApp(

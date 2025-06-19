@@ -585,7 +585,7 @@ class ExpenseService with ChangeNotifier {
     await updateExpense(updatedExpense);
 
     if (amountDifference != 0) {
-      Wallet? walletToUpdate = null;
+      Wallet? walletToUpdate;
       if (walletId.isNotEmpty) {
         for (final wallet in _walletService.wallets) {
           if (wallet.id == walletId) {
@@ -594,9 +594,7 @@ class ExpenseService with ChangeNotifier {
           }
         }
       }
-      if (walletToUpdate == null) {
-        walletToUpdate = _walletService.getPrimaryWallet();
-      }
+      walletToUpdate ??= _walletService.getPrimaryWallet();
 
       if (walletToUpdate != null) {
         await _walletService.updateWalletBalance(
