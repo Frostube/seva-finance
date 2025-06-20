@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Test</title>
+</head>
+<body>
+  <div style="text-align: center; padding: 50px; font-family: Arial;">
+    <h1>Debug Test Page</h1>
+    <p>If you can see this on your iPhone, the basic HTML is working.</p>
+    <button onclick="testJS()">Test JavaScript</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function testJS() {
+      document.getElementById('result').innerHTML = '<p style="color: green;">JavaScript is working!</p>';
+      console.log('JavaScript test successful');
+    }
+    
+    // Test Firebase loading
+    console.log('Starting Firebase test...');
+    
+    // Load Firebase scripts
+    const firebaseApp = document.createElement('script');
+    firebaseApp.src = 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js';
+    firebaseApp.onload = function() {
+      console.log('Firebase app loaded');
+      
+      const firebaseAuth = document.createElement('script');
+      firebaseAuth.src = 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js';
+      firebaseAuth.onload = function() {
+        console.log('Firebase auth loaded');
+        
+        const firebaseFirestore = document.createElement('script');
+        firebaseFirestore.src = 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js';
+        firebaseFirestore.onload = function() {
+          console.log('Firebase firestore loaded');
+          
+          // Try to initialize Firebase
+          try {
+            const firebaseConfig = {
+              apiKey: "AIzaSyBDUw0xs0xlLCaWts9A1KJenYJyJlb-fGo",
+              authDomain: "seva-finance-app.firebaseapp.com",
+              projectId: "seva-finance-app",
+              storageBucket: "seva-finance-app.firebasestorage.app",
+              messagingSenderId: "741018143182",
+              appId: "1:741018143182:web:3e9ea6caf2134652e4439f",
+              measurementId: "G-PRDFE66X52"
+            };
+            
+            firebase.initializeApp(firebaseConfig);
+            console.log('Firebase initialized successfully');
+            document.getElementById('result').innerHTML += '<p style="color: blue;">Firebase loaded successfully!</p>';
+          } catch (error) {
+            console.error('Firebase initialization error:', error);
+            document.getElementById('result').innerHTML += '<p style="color: red;">Firebase error: ' + error.message + '</p>';
+          }
+        };
+        firebaseFirestore.onerror = function() {
+          console.error('Failed to load Firebase Firestore');
+          document.getElementById('result').innerHTML += '<p style="color: red;">Failed to load Firebase Firestore</p>';
+        };
+        document.head.appendChild(firebaseFirestore);
+      };
+      firebaseAuth.onerror = function() {
+        console.error('Failed to load Firebase Auth');
+        document.getElementById('result').innerHTML += '<p style="color: red;">Failed to load Firebase Auth</p>';
+      };
+      document.head.appendChild(firebaseAuth);
+    };
+    firebaseApp.onerror = function() {
+      console.error('Failed to load Firebase App');
+      document.getElementById('result').innerHTML += '<p style="color: red;">Failed to load Firebase App</p>';
+    };
+    document.head.appendChild(firebaseApp);
+  </script>
+</body>
+</html> 

@@ -38,13 +38,10 @@
     const serviceWorkerVersion = '{{flutter_service_worker_version}}';
   </script>
 
-  <!-- Firebase SDK - Updated to stable v10.x -->
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+  <!-- Firebase SDK - Essential for iOS Safari compatibility -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <!-- Firebase Configuration -->
   <script>
@@ -58,7 +55,7 @@
       measurementId: "G-PRDFE66X52"
     };
 
-    // Initialize Firebase with error handling
+    // Initialize Firebase normally for iOS Safari compatibility
     try {
       firebase.initializeApp(firebaseConfig);
       console.log('Firebase initialized successfully');
@@ -68,22 +65,24 @@
         cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
       });
       
-      // Enable network persistence if needed
-      firebase.firestore().enableNetwork();
-      
     } catch (error) {
       console.error('Error initializing Firebase:', error);
     }
   </script>
 
   <!-- Flutter initialization -->
-  <script src="flutter.js"></script>
+  <script src="flutter_bootstrap.js" defer></script>
 </head>
 <body>
   <!-- Loading indicator -->
-  <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Inter', sans-serif; text-align: center;">
-    <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #1B4332; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-    <p style="color: #1B4332; font-size: 16px; margin: 0;">Loading SevaFinance...</p>
+  <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: Arial, sans-serif; text-align: center; z-index: 9999;">
+    <div style="width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid #1B4332; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+    <p id="loading-text" style="color: #1B4332; font-size: 16px; margin: 0; font-weight: 600;">Loading SevaFinance...</p>
+    <div id="progress-container" style="width: 200px; height: 6px; background-color: #f3f3f3; border-radius: 3px; margin: 15px auto 10px; overflow: hidden;">
+      <div id="progress-bar" style="width: 0%; height: 100%; background-color: #1B4332; border-radius: 3px; transition: width 0.3s ease;"></div>
+    </div>
+    <p id="progress-text" style="color: #666; font-size: 14px; margin: 0;">0%</p>
+    <p id="timeout-warning" style="color: #d32f2f; font-size: 12px; margin: 10px 0 0 0; display: none;">Taking longer than expected...</p>
   </div>
   <style>
     @keyframes spin {
@@ -92,25 +91,58 @@
     }
   </style>
   <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.load({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine({
-            renderer: 'html'
-          }).then(function(appRunner) {
-            appRunner.runApp();
-            // Hide loading indicator
-            document.getElementById('loading').style.display = 'none';
-          }).catch(function(error) {
-            console.error('Failed to initialize Flutter app:', error);
-            document.getElementById('loading').innerHTML = '<p style="color: #d32f2f;">Failed to load app. Please refresh.</p>';
-          });
-        }
+    // Loading progress simulation
+    let loadingComplete = false;
+    
+    function updateProgress(percent, message) {
+      if (loadingComplete) return;
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+      const loadingText = document.getElementById('loading-text');
+      
+      if (progressBar) progressBar.style.width = percent + '%';
+      if (progressText) progressText.textContent = percent + '%';
+      if (message && loadingText) loadingText.textContent = message;
+    }
+
+    // Start progress simulation when page loads
+    window.addEventListener('load', function() {
+      const stages = [
+        { percent: 20, message: 'Loading...', delay: 100 },
+        { percent: 45, message: 'Preparing...', delay: 400 },
+        { percent: 70, message: 'Starting...', delay: 800 },
+        { percent: 85, message: 'Almost ready...', delay: 1200 }
+      ];
+
+      stages.forEach(stage => {
+        setTimeout(() => updateProgress(stage.percent, stage.message), stage.delay);
       });
+
+      // Show timeout warning after 10 seconds
+      setTimeout(() => {
+        if (!loadingComplete) {
+          const warning = document.getElementById('timeout-warning');
+          if (warning) warning.style.display = 'block';
+        }
+      }, 10000);
+
+      // Auto-reload after 20 seconds
+      setTimeout(() => {
+        if (!loadingComplete) {
+          updateProgress(0, 'Reloading...');
+          setTimeout(() => window.location.reload(), 2000);
+        }
+      }, 20000);
+    });
+
+    // Listen for Flutter app to be ready
+    window.addEventListener('flutter-first-frame', function() {
+      updateProgress(100, 'Ready!');
+      setTimeout(() => {
+        loadingComplete = true;
+        const loading = document.getElementById('loading');
+        if (loading) loading.style.display = 'none';
+      }, 300);
     });
   </script>
 </body>
