@@ -28,7 +28,7 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
       body: Consumer2<OnboardingService, AuthService>(
         builder: (context, onboardingService, authService, child) {
           final userOnboarding = onboardingService.userOnboarding;
-
+          
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -92,7 +92,7 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
                           .toString()),
                   const SizedBox(height: 8),
                 ],
-
+                
                 const SizedBox(height: 32),
                 Text(
                   'Actions',
@@ -109,17 +109,17 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
                     onPressed: onboardingService.isLoading
                         ? null
                         : () async {
-                            await onboardingService.resetOnboarding();
+                      await onboardingService.resetOnboarding();
                             // Trigger a rebuild to show updated status
                             setState(() {});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
                                 content: Text(
                                     'Onboarding reset! Go back to dashboard to see the tour.'),
-                                backgroundColor: Color(0xFF1B4332),
-                              ),
-                            );
-                          },
+                          backgroundColor: Color(0xFF1B4332),
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1B4332),
                       foregroundColor: Colors.white,
@@ -146,15 +146,15 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
                     onPressed: onboardingService.isLoading
                         ? null
                         : () async {
-                            await onboardingService.completeOnboarding();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                      await onboardingService.completeOnboarding();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
                                 content:
                                     Text('Onboarding marked as completed!'),
-                                backgroundColor: Color(0xFF40916C),
-                              ),
-                            );
-                          },
+                          backgroundColor: Color(0xFF40916C),
+                        ),
+                      );
+                    },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF1B4332)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -172,7 +172,7 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
                     ),
                   ),
                 ),
-
+                
                 const SizedBox(height: 12),
 
                 SizedBox(
@@ -282,4 +282,4 @@ class _OnboardingDebugScreenState extends State<OnboardingDebugScreen> {
       ),
     );
   }
-}
+} 

@@ -1,44 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'user_onboarding.dart';
+part of 'budget_template.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class UserOnboardingAdapter extends TypeAdapter<UserOnboarding> {
+class BudgetTemplateAdapter extends TypeAdapter<BudgetTemplate> {
   @override
-  final int typeId = 11;
+  final int typeId = 12;
 
   @override
-  UserOnboarding read(BinaryReader reader) {
+  BudgetTemplate read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return UserOnboarding(
-      onboardingCompleted: fields[0] as bool,
-      onboardingStartedAt: fields[1] as DateTime?,
-      onboardingCompletedAt: fields[2] as DateTime?,
-      currentStep: fields[3] as int,
-      completedSteps: (fields[4] as List).cast<String>(),
+    return BudgetTemplate(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      description: fields[2] as String,
+      isSystem: fields[3] as bool,
+      createdBy: fields[4] as String?,
+      createdAt: fields[5] as DateTime?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, UserOnboarding obj) {
+  void write(BinaryWriter writer, BudgetTemplate obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.onboardingCompleted)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.onboardingStartedAt)
+      ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.onboardingCompletedAt)
+      ..write(obj.description)
       ..writeByte(3)
-      ..write(obj.currentStep)
+      ..write(obj.isSystem)
       ..writeByte(4)
-      ..write(obj.completedSteps);
+      ..write(obj.createdBy)
+      ..writeByte(5)
+      ..write(obj.createdAt);
   }
 
   @override
@@ -47,7 +50,7 @@ class UserOnboardingAdapter extends TypeAdapter<UserOnboarding> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is UserOnboardingAdapter &&
+      other is BudgetTemplateAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

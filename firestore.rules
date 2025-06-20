@@ -10,17 +10,17 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
         // 'write' covers create and update
-      }
+    }
 
       // Wallets subcollection (similar pattern as notifications)
-      match /wallets/{walletId} {
+    match /wallets/{walletId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-      }
+    }
 
       // Expenses subcollection (similar pattern)
-      match /expenses/{expenseId} {
+    match /expenses/{expenseId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-      }
+    }
 
       // ExpenseCategories subcollection (similar pattern)
       match /expenseCategories/{categoryId} {
@@ -45,6 +45,32 @@ service cloud.firestore {
 
       match /spendingAlerts/{alertId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Budget Templates collection - system templates readable by all, user templates restricted
+    match /budgetTemplates/{templateId} {
+      // Allow all authenticated users to read system templates
+      allow read: if request.auth != null && resource.data.isSystem == true;
+      // Allow users to read their own templates
+      allow read: if request.auth != null && resource.data.createdBy == request.auth.uid;
+      // Allow users to create their own templates
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid && request.resource.data.isSystem == false;
+      // Allow users to update/delete their own templates
+      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid && resource.data.isSystem == false;
+      // Allow system to create system templates (for seeding)
+      allow create: if request.auth != null && request.resource.data.isSystem == true;
+      // Allow system to update/delete system templates (for cleanup and maintenance)
+      allow update, delete: if request.auth != null && resource.data.isSystem == true;
+
+      // Template items subcollection
+      match /items/{itemId} {
+        // Allow read access to template items if user can read the parent template
+        allow read: if request.auth != null;
+        // Allow write access to template items if user can write to the parent template
+        allow write: if request.auth != null;
+        // Allow delete access to template items for cleanup
+        allow delete: if request.auth != null;
       }
     }
 

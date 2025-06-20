@@ -1,44 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'user_onboarding.dart';
+part of 'template_item.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class UserOnboardingAdapter extends TypeAdapter<UserOnboarding> {
+class TemplateItemAdapter extends TypeAdapter<TemplateItem> {
   @override
-  final int typeId = 11;
+  final int typeId = 13;
 
   @override
-  UserOnboarding read(BinaryReader reader) {
+  TemplateItem read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return UserOnboarding(
-      onboardingCompleted: fields[0] as bool,
-      onboardingStartedAt: fields[1] as DateTime?,
-      onboardingCompletedAt: fields[2] as DateTime?,
-      currentStep: fields[3] as int,
-      completedSteps: (fields[4] as List).cast<String>(),
+    return TemplateItem(
+      id: fields[0] as String,
+      templateId: fields[1] as String,
+      categoryId: fields[2] as String,
+      defaultAmount: fields[3] as double,
+      order: fields[4] as int,
+      createdAt: fields[5] as DateTime?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, UserOnboarding obj) {
+  void write(BinaryWriter writer, TemplateItem obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.onboardingCompleted)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.onboardingStartedAt)
+      ..write(obj.templateId)
       ..writeByte(2)
-      ..write(obj.onboardingCompletedAt)
+      ..write(obj.categoryId)
       ..writeByte(3)
-      ..write(obj.currentStep)
+      ..write(obj.defaultAmount)
       ..writeByte(4)
-      ..write(obj.completedSteps);
+      ..write(obj.order)
+      ..writeByte(5)
+      ..write(obj.createdAt);
   }
 
   @override
@@ -47,7 +50,7 @@ class UserOnboardingAdapter extends TypeAdapter<UserOnboarding> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is UserOnboardingAdapter &&
+      other is TemplateItemAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

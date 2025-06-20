@@ -142,6 +142,22 @@ class _MainScreenState extends State<MainScreen> {
         onStepAction: null, // Stay on dashboard
       ),
       TourStep(
+        stepName: 'add_goal',
+        title: 'Set Your Savings Goals',
+        description:
+            'Create savings goals to track your progress toward important financial targets. Tap "Goal" to set up your first savings goal.',
+        targetRect: _getGoalButtonRect(context),
+        onStepAction: null, // Stay on dashboard to show the goal button
+      ),
+      TourStep(
+        stepName: 'add_alert',
+        title: 'Set Spending Alerts',
+        description:
+            'Set up spending alerts to get notified when you\'re approaching your budget limits. Tap "Alert" to create your first spending alert.',
+        targetRect: _getAlertButtonRect(context),
+        onStepAction: null, // Stay on dashboard to show the alert button
+      ),
+      TourStep(
         stepName: 'expenses_navigation',
         title: 'Navigate to Expenses',
         description:
@@ -171,6 +187,30 @@ class _MainScreenState extends State<MainScreen> {
       100, // Below the status bar and app bar
       screenSize.width - 40,
       200, // Height covering the greeting and wallet section
+    );
+  }
+
+  Rect _getGoalButtonRect(BuildContext context) {
+    // Target the "Goal" button on the dashboard
+    final screenSize = MediaQuery.of(context).size;
+    return Rect.fromLTWH(
+      24, // Left padding
+      screenSize.height * 0.55, // Approximate position of quick actions
+      (screenSize.width - 80) / 2, // Half width minus padding and spacing
+      56, // Button height
+    );
+  }
+
+  Rect _getAlertButtonRect(BuildContext context) {
+    // Target the "Alert" button on the dashboard
+    final screenSize = MediaQuery.of(context).size;
+    return Rect.fromLTWH(
+      24 +
+          (screenSize.width - 80) / 2 +
+          16, // Left padding + first button width + spacing
+      screenSize.height * 0.55, // Approximate position of quick actions
+      (screenSize.width - 80) / 2, // Half width minus padding and spacing
+      56, // Button height
     );
   }
 

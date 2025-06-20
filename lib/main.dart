@@ -16,6 +16,8 @@ import 'models/savings_goal.dart';
 import 'models/spending_alert.dart';
 import 'models/notification.dart';
 import 'models/expense_category.dart';
+import 'models/budget_template.dart';
+import 'models/template_item.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,6 +28,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'firebase_options.dart';
 import 'services/budget_service.dart';
+import 'services/budget_template_service.dart';
 import 'services/savings_goal_service.dart';
 import 'services/spending_alert_service.dart';
 import 'services/category_service.dart';
@@ -68,6 +71,10 @@ void main() async {
   if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(DateFallbackAdapter());
   if (!Hive.isAdapterRegistered(11))
     Hive.registerAdapter(UserOnboardingAdapter());
+  if (!Hive.isAdapterRegistered(12))
+    Hive.registerAdapter(BudgetTemplateAdapter());
+  if (!Hive.isAdapterRegistered(13))
+    Hive.registerAdapter(TemplateItemAdapter());
 
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
@@ -78,6 +85,8 @@ void main() async {
   await Hive.openBox<ExpenseCategory>('expense_categories');
   await Hive.openBox<OcrSettings>('ocr_settings_box');
   await Hive.openBox<UserOnboarding>('user_onboarding');
+  await Hive.openBox<BudgetTemplate>('budget_templates');
+  await Hive.openBox<TemplateItem>('template_items');
 
   runApp(const MyApp());
 }
@@ -201,6 +210,14 @@ class MyApp extends StatelessWidget {
           create: (context) => OnboardingService(
             Hive.box<UserOnboarding>('user_onboarding'),
             Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<AuthService>(context, listen: false),
+          ),
+        ),
+        ChangeNotifierProvider<BudgetTemplateService>(
+          create: (context) => BudgetTemplateService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Hive.box<BudgetTemplate>('budget_templates'),
+            Hive.box<TemplateItem>('template_items'),
             Provider.of<AuthService>(context, listen: false),
           ),
         ),

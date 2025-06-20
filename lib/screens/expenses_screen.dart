@@ -19,6 +19,7 @@ import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/category_service.dart';
+import '../widgets/template_picker_modal.dart';
 import 'ocr_screen.dart'; // Added for OCR screen navigation
 
 class ExpensesScreen extends StatefulWidget {
@@ -538,6 +539,37 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
+                      CupertinoIcons.chart_pie_fill,
+                      color: Color(0xFF1B4332),
+                    ),
+                  ),
+                  title: Text(
+                    'Choose Template',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Quick budget setup',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showTemplatePickerModal();
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F1EC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
                       CupertinoIcons.money_dollar,
                       color: Color(0xFF1B4332),
                     ),
@@ -607,6 +639,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           currentBudget: _monthlyBudget ?? 0.0,
           onBudgetUpdated: _loadBudget,
         ),
+      ),
+    );
+  }
+
+  void _showTemplatePickerModal() {
+    final primaryWallet = _walletService.getPrimaryWallet();
+    if (primaryWallet == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please create a wallet first',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TemplatePickerModal(
+        walletId: primaryWallet.id,
+        onTemplateSelected: () {
+          // Refresh budget and expenses data after template is applied
+          _loadBudget();
+          setState(() {
+            _refreshCounter++;
+          });
+        },
       ),
     );
   }
@@ -859,30 +923,81 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: _showAddBudgetScreen,
-                              child: Row(
+                            // Budget action area
+                            if (primaryWallet.budget != null &&
+                                primaryWallet.budget! > 0)
+                              GestureDetector(
+                                onTap: _showAddBudgetScreen,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'You have ${formatter.format(primaryWallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        color: const Color(0xFF40916C),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      CupertinoIcons.pencil,
+                                      size: 12,
+                                      color: Color(0xFF40916C),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              // Template picker call-to-action for empty budget state
+                              Column(
                                 children: [
-                                  Text(
-                                    primaryWallet.budget != null &&
-                                            primaryWallet.budget! > 0
-                                        ? 'You have ${formatter.format(primaryWallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}'
-                                        : 'Tap to set a monthly budget',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: const Color(0xFF40916C),
-                                      fontWeight: FontWeight.w500,
+                                  GestureDetector(
+                                    onTap: _showTemplatePickerModal,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1B4332),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            CupertinoIcons.chart_pie_fill,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Choose Template',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    CupertinoIcons.pencil,
-                                    size: 12,
-                                    color: Color(0xFF40916C),
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: _showAddBudgetScreen,
+                                    child: Text(
+                                      'Or set budget manually',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        color: const Color(0xFF40916C),
+                                        fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
                           ],
                         ),
                       ),
