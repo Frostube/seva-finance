@@ -69,3 +69,4 @@ class TemplateItem {
     return 'TemplateItem{id: $id, templateId: $templateId, categoryId: $categoryId, defaultAmount: $defaultAmount, order: $order}';
   }
 }
+ 

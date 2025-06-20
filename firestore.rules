@@ -46,6 +46,18 @@ service cloud.firestore {
       match /spendingAlerts/{alertId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /categoryBudgets/{budgetId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Recurring Transactions collection - user-specific access
+    match /recurringTransactions/{recurringId} {
+      // Allow users to create recurring transactions
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      // Allow users to read, update, and delete their own recurring transactions
+      allow read, update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
     }
 
     // Budget Templates collection - system templates readable by all, user templates restricted

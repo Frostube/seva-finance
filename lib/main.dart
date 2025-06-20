@@ -18,6 +18,7 @@ import 'models/notification.dart';
 import 'models/expense_category.dart';
 import 'models/budget_template.dart';
 import 'models/template_item.dart';
+import 'models/recurring_transaction.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,10 +33,13 @@ import 'services/budget_template_service.dart';
 import 'services/savings_goal_service.dart';
 import 'services/spending_alert_service.dart';
 import 'services/category_service.dart';
+import 'services/category_budget_service.dart';
 import 'services/ocr_settings_service.dart';
 import 'services/onboarding_service.dart';
+import 'services/recurring_transaction_service.dart';
 import 'models/ocr_settings.dart';
 import 'models/user_onboarding.dart';
+import 'models/category_budget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +79,14 @@ void main() async {
     Hive.registerAdapter(BudgetTemplateAdapter());
   if (!Hive.isAdapterRegistered(13))
     Hive.registerAdapter(TemplateItemAdapter());
+  if (!Hive.isAdapterRegistered(14))
+    Hive.registerAdapter(CategoryBudgetAdapter());
+  if (!Hive.isAdapterRegistered(15))
+    Hive.registerAdapter(BudgetStatusAdapter());
+  if (!Hive.isAdapterRegistered(16))
+    Hive.registerAdapter(BudgetTimelineAdapter());
+  if (!Hive.isAdapterRegistered(17))
+    Hive.registerAdapter(RecurringTransactionAdapter());
 
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
@@ -87,6 +99,8 @@ void main() async {
   await Hive.openBox<UserOnboarding>('user_onboarding');
   await Hive.openBox<BudgetTemplate>('budget_templates');
   await Hive.openBox<TemplateItem>('template_items');
+  await Hive.openBox<CategoryBudget>('category_budgets');
+  await Hive.openBox<RecurringTransaction>('recurring_transactions');
 
   runApp(const MyApp());
 }
@@ -220,6 +234,17 @@ class MyApp extends StatelessWidget {
             Hive.box<TemplateItem>('template_items'),
             Provider.of<AuthService>(context, listen: false),
           ),
+        ),
+        ChangeNotifierProvider<CategoryBudgetService>(
+          create: (context) => CategoryBudgetService(
+            Hive.box<CategoryBudget>('category_budgets'),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<ExpenseService>(context, listen: false),
+            Provider.of<NotificationService>(context, listen: false),
+          ),
+        ),
+        Provider<RecurringTransactionService>(
+          create: (context) => RecurringTransactionService(),
         ),
       ],
       child: MaterialApp(

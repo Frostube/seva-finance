@@ -10,13 +10,16 @@ import '../models/expense_category.dart';
 import '../services/budget_template_service.dart';
 import '../services/category_service.dart';
 import '../services/wallet_service.dart';
+import '../services/category_budget_service.dart';
 import '../utils/icon_utils.dart';
+import '../widgets/loading_widget.dart';
 
 class BudgetCreationScreen extends StatefulWidget {
   final String walletId;
   final BudgetTemplate? selectedTemplate;
   final List<TemplateItem>? templateItems;
   final VoidCallback? onBudgetCreated;
+  final bool isEditingTemplate;
 
   const BudgetCreationScreen({
     Key? key,
@@ -24,6 +27,7 @@ class BudgetCreationScreen extends StatefulWidget {
     this.selectedTemplate,
     this.templateItems,
     this.onBudgetCreated,
+    this.isEditingTemplate = false,
   }) : super(key: key);
 
   @override
@@ -36,9 +40,24 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
   bool _saveAsTemplate = false;
   bool _isLoading = false;
 
+  // New timeline controls
+  BudgetTimeline _selectedTimeline = BudgetTimeline.monthly;
+  DateTime? _selectedEndDate;
+
   @override
   void initState() {
     super.initState();
+    // Initialize timeline from template if available
+    if (widget.selectedTemplate != null) {
+      _selectedTimeline = widget.selectedTemplate!.timeline;
+      _selectedEndDate = widget.selectedTemplate!.endDate;
+
+      // If editing a template, pre-fill the template name
+      if (widget.isEditingTemplate) {
+        _templateNameController.text = widget.selectedTemplate!.name;
+        _saveAsTemplate = true;
+      }
+    }
     _initializeBudgetItems();
   }
 
@@ -112,6 +131,56 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
     setState(() {
       _budgetItems[index].amount = amount;
     });
+  }
+
+  Future<void> _selectEndDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _selectedEndDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)), // 10 years
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: const Color(0xFF1B4332),
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedEndDate) {
+      setState(() {
+        _selectedEndDate = picked;
+      });
+    }
+  }
+
+  String _getTemplateDescription() {
+    String baseDescription = 'Custom budget template';
+    String timelineText = '';
+
+    switch (_selectedTimeline) {
+      case BudgetTimeline.monthly:
+        timelineText = ' (Monthly)';
+        break;
+      case BudgetTimeline.yearly:
+        timelineText = ' (Yearly)';
+        break;
+      case BudgetTimeline.undefined:
+        timelineText = ' (One-time)';
+        break;
+    }
+
+    if (_selectedEndDate != null) {
+      final endDateText = DateFormat('MMM dd, yyyy').format(_selectedEndDate!);
+      return '$baseDescription$timelineText - Valid until $endDateText';
+    }
+
+    return '$baseDescription$timelineText';
   }
 
   void _addNewCategory() {
@@ -211,7 +280,7 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
 
   void _removeCategory(int index) {
     setState(() {
-      _budgetItems[index].controller.dispose();
+      _budgetItems[index].dispose();
       _budgetItems.removeAt(index);
     });
   }
@@ -235,10 +304,34 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
     });
 
     try {
+      // If we're editing a template, only save the template, don't create budget
+      if (widget.isEditingTemplate) {
+        await _saveTemplateOnly();
+        return;
+      }
+
       final walletService = Provider.of<WalletService>(context, listen: false);
 
       // Update wallet budget
       await walletService.setWalletBudget(widget.walletId, _totalBudget);
+
+      // Create category budgets for tracking
+      final categoryBudgetService =
+          Provider.of<CategoryBudgetService>(context, listen: false);
+      final templateItems = _budgetItems
+          .map((item) => {
+                'categoryId': item.category.id,
+                'categoryName': item.displayName,
+                'amount': item.amount,
+              })
+          .toList();
+
+      await categoryBudgetService.createCategoryBudgetsFromTemplate(
+        walletId: widget.walletId,
+        templateItems: templateItems,
+        month: DateTime.now(),
+        templateId: widget.selectedTemplate?.id,
+      );
 
       // Save as custom template if requested
       if (_saveAsTemplate && _templateNameController.text.isNotEmpty) {
@@ -255,10 +348,12 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
                 ))
             .toList();
 
-        await templateService.createTemplate(
+        await templateService.createTemplateWithTimeline(
           name: _templateNameController.text,
-          description: 'Custom budget template',
+          description: _getTemplateDescription(),
           items: templateItems,
+          timeline: _selectedTimeline,
+          endDate: _selectedEndDate,
         );
       }
 
@@ -297,10 +392,91 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
     }
   }
 
+  Future<void> _saveTemplateOnly() async {
+    if (!_saveAsTemplate || _templateNameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please enter a template name',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final templateService =
+          Provider.of<BudgetTemplateService>(context, listen: false);
+
+      final templateItems = _budgetItems
+          .map((item) => TemplateItem(
+                id: '',
+                templateId: '',
+                categoryId: item.category.id,
+                defaultAmount: item.amount,
+                order: _budgetItems.indexOf(item),
+              ))
+          .toList();
+
+      if (widget.selectedTemplate != null && widget.isEditingTemplate) {
+        // Update existing template
+        // Note: This would require an updateTemplate method in the service
+        // For now, we'll delete and recreate
+        await templateService.deleteTemplate(widget.selectedTemplate!.id);
+      }
+
+      await templateService.createTemplateWithTimeline(
+        name: _templateNameController.text,
+        description: _getTemplateDescription(),
+        items: templateItems,
+        timeline: _selectedTimeline,
+        endDate: _selectedEndDate,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isEditingTemplate
+                ? 'Template updated successfully!'
+                : 'Template saved successfully!',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Call the callback if provided
+      if (widget.onBudgetCreated != null) {
+        widget.onBudgetCreated!();
+      }
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error saving template: $e',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     for (final item in _budgetItems) {
-      item.controller.dispose();
+      item.dispose();
     }
     _templateNameController.dispose();
     super.dispose();
@@ -334,7 +510,7 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CupertinoActivityIndicator(),
+                child: LoadingWidget(),
               ),
             )
           else
@@ -386,6 +562,169 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
                     fontSize: 32,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1B4332),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Timeline and End Date Controls
+          Container(
+            width: double.infinity,
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Budget Settings',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Timeline Selector
+                Text(
+                  'Timeline',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<BudgetTimeline>(
+                      value: _selectedTimeline,
+                      isExpanded: true,
+                      items: BudgetTimeline.values.map((timeline) {
+                        String displayText;
+                        String subtitle;
+                        switch (timeline) {
+                          case BudgetTimeline.monthly:
+                            displayText = 'Monthly';
+                            subtitle = 'Budget resets every month';
+                            break;
+                          case BudgetTimeline.yearly:
+                            displayText = 'Yearly';
+                            subtitle = 'Budget resets every year';
+                            break;
+                          case BudgetTimeline.undefined:
+                            displayText = 'One-time';
+                            subtitle = 'Fixed budget amount';
+                            break;
+                        }
+                        return DropdownMenuItem(
+                          value: timeline,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                displayText,
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                subtitle,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedTimeline = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // End Date (Optional)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'End Date (Optional)',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    if (_selectedEndDate != null)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedEndDate = null;
+                          });
+                        },
+                        child: Text(
+                          'Clear',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _selectEndDate,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.calendar,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedEndDate != null
+                                ? DateFormat('MMM dd, yyyy')
+                                    .format(_selectedEndDate!)
+                                : 'Select end date (optional)',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              color: _selectedEndDate != null
+                                  ? Colors.black
+                                  : Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -509,14 +848,26 @@ class _BudgetCreationScreenState extends State<BudgetCreationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.category.name,
+                // Editable category name
+                TextField(
+                  controller: item.nameController,
+                  onChanged: (value) {
+                    setState(() {
+                      item.displayName = value;
+                    });
+                  },
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
+                // Amount input
                 SizedBox(
                   width: 120,
                   child: TextField(
@@ -607,10 +958,21 @@ class BudgetCategoryItem {
   final ExpenseCategory category;
   double amount;
   final TextEditingController controller;
+  final TextEditingController nameController;
+  String displayName;
 
   BudgetCategoryItem({
     required this.category,
     required this.amount,
     required this.controller,
-  });
+    String? customName,
+  })  : displayName = customName ?? category.name,
+        nameController =
+            TextEditingController(text: customName ?? category.name);
+
+  void dispose() {
+    controller.dispose();
+    nameController.dispose();
+  }
 }
+ 

@@ -19,7 +19,13 @@ import 'edit_wallet_screen.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/category_service.dart';
+import '../services/category_budget_service.dart';
 import '../widgets/template_picker_modal.dart';
+import '../widgets/category_budget_tracker.dart';
+import '../widgets/loading_widget.dart';
+import '../models/budget_template.dart';
+import '../models/template_item.dart';
+import 'budget_creation_screen.dart';
 import 'ocr_screen.dart'; // Added for OCR screen navigation
 
 class ExpensesScreen extends StatefulWidget {
@@ -351,109 +357,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     print(
         'ExpensesScreen: Updating cached values for ${DateFormat('MMMM yyyy').format(_selectedMonth)}');
     setState(() {
-      _refreshCounter++;
+     _refreshCounter++;
     });
-  }
-
-  void _showMonthPicker() {
-    print('ExpensesScreen: _showMonthPicker called');
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return Container(
-          height: 300,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.grey[200]!,
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'Select Month',
-                      style: GoogleFonts.inter(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _updateCachedValues();
-                      },
-                      child: Text(
-                        'Done',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF1B4332),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
-                  initialDateTime: _selectedMonth,
-                  minimumYear: 2020,
-                  maximumYear: DateTime.now().year,
-                  onDateTimeChanged: (DateTime newDate) {
-                    setState(() {
-                      _selectedMonth = DateTime(newDate.year, newDate.month);
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   bool _isCurrentMonth() {
     final now = DateTime.now();
     return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
-  }
-
-  void _navigateMonth(int monthDelta) {
-    setState(() {
-      _selectedMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month + monthDelta,
-      );
-      _refreshCounter++;
-      print(
-          'ExpensesScreen: _navigateMonth called, new month: $_selectedMonth, counter: $_refreshCounter');
-    });
-    _loadMySpendingData();
-    _loadSixMonthChartData();
   }
 
   void _refreshScreen() {
@@ -675,6 +585,91 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
+  void _editCurrentBudget() async {
+    print('ExpensesScreen: _editCurrentBudget called');
+
+    final primaryWallet = _walletService.getPrimaryWallet();
+    if (primaryWallet == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please create a wallet first',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Get current month's category budgets
+    final categoryBudgetService =
+        Provider.of<CategoryBudgetService>(context, listen: false);
+    final categoryBudgets = categoryBudgetService
+        .getCategoryBudgetsForWalletAndMonth(primaryWallet.id, _selectedMonth);
+
+    if (categoryBudgets.isEmpty) {
+      // No budget exists, show template picker instead
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No budget found for ${DateFormat('MMMM yyyy').format(_selectedMonth)}. Please choose a template first.',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      _showTemplatePickerModal();
+      return;
+    }
+
+    // Convert category budgets to template items for editing
+    final templateItems = categoryBudgets.asMap().entries.map((entry) {
+      final index = entry.key;
+      final budget = entry.value;
+      return TemplateItem(
+        id: budget.id,
+        templateId: budget.templateId ?? '',
+        categoryId: budget.categoryId,
+        defaultAmount: budget.budgetAmount,
+        order: index,
+      );
+    }).toList();
+
+    // Create a temporary template for editing
+    final editTemplate = BudgetTemplate(
+      id: 'edit_current_budget',
+      name: 'Edit Budget - ${DateFormat('MMMM yyyy').format(_selectedMonth)}',
+      description:
+          'Modify your budget for ${DateFormat('MMMM yyyy').format(_selectedMonth)}',
+      isSystem: false,
+      createdBy: null,
+      createdAt: DateTime.now(),
+      timeline: BudgetTimeline.monthly,
+      endDate: null,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BudgetCreationScreen(
+          walletId: primaryWallet.id,
+          selectedTemplate: editTemplate,
+          templateItems: templateItems,
+          onBudgetCreated: () {
+            // Refresh budget and expenses data after editing
+            _loadBudget();
+            setState(() {
+              _refreshCounter++;
+            });
+          },
+          isEditingTemplate:
+              false, // We're editing the actual budget, not the template
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     print(
@@ -683,12 +678,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     if (!_isScreenInitialized) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8F9FA),
-        body: Center(child: CupertinoActivityIndicator(radius: 16.0)),
+        body: const CenterLoadingWidget(radius: 16.0),
       );
     }
-
-    final formatter = NumberFormat.currency(symbol: '\$');
-    final isCurrentMonth = _isCurrentMonth();
 
     // Check if we have a primary wallet
     final primaryWallet = _walletService.getPrimaryWallet();
@@ -801,203 +793,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header with integrated budget view
+                      // Clean header with logo and add button
                       Container(
                         padding:
-                            const EdgeInsets.fromLTRB(24.0, 24.0, 16.0, 24.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                            const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 16.0),
+                        color:
+                            const Color(0xFFF8F9FA), // Match background color
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Expenses & Budget',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(CupertinoIcons.plus_circle),
-                                  color: const Color(0xFF1B4332),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: _showAddOptions,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(CupertinoIcons.chevron_left,
-                                      size: 20),
-                                  onPressed: () => _navigateMonth(-1),
-                                  color: Colors.grey[600],
-                                ),
-                                GestureDetector(
-                                  onTap: _showMonthPicker,
-                                  child: Text(
-                                    DateFormat('MMMM yyyy')
-                                        .format(_selectedMonth),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                if (!isCurrentMonth)
-                                  IconButton(
-                                    icon: const Icon(
-                                        CupertinoIcons.chevron_right,
-                                        size: 20),
-                                    onPressed: () => _navigateMonth(1),
-                                    color: Colors.grey[600],
-                                  ),
-                                if (isCurrentMonth) const SizedBox(width: 48),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  formatter.format(totalSpent),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    primaryWallet.budget != null &&
-                                            primaryWallet.budget! > 0
-                                        ? 'of ${formatter.format(primaryWallet.budget!)}'
-                                        : 'No budget set',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: primaryWallet.budget != null &&
-                                        primaryWallet.budget! > 0
-                                    ? (totalSpent / primaryWallet.budget!)
-                                        .clamp(0.0, 1.0)
-                                    : 0.0,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF40916C),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
+                            // Seva Finance Logo
+                            Text(
+                              'SevaFinance',
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1B4332),
+                                letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            // Budget action area
-                            if (primaryWallet.budget != null &&
-                                primaryWallet.budget! > 0)
-                              GestureDetector(
-                                onTap: _showAddBudgetScreen,
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'You have ${formatter.format(primaryWallet.budget! - totalSpent)} left for ${DateFormat('MMMM').format(_selectedMonth)}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        color: const Color(0xFF40916C),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      CupertinoIcons.pencil,
-                                      size: 12,
-                                      color: Color(0xFF40916C),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              // Template picker call-to-action for empty budget state
-                              Column(
-                                children: [
-                                  GestureDetector(
-                                    onTap: _showTemplatePickerModal,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1B4332),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            CupertinoIcons.chart_pie_fill,
-                                            color: Colors.white,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Choose Template',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  GestureDetector(
-                                    onTap: _showAddBudgetScreen,
-                                    child: Text(
-                                      'Or set budget manually',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        color: const Color(0xFF40916C),
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            // Add button
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.plus_circle),
+                              color: const Color(0xFF1B4332),
+                              iconSize: 28,
+                              onPressed: _showAddOptions,
+                            ),
                           ],
                         ),
                       ),
@@ -1020,11 +841,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           ],
                         ),
                         child: _isMySpendingLoading
-                            ? const Center(
-                                child: SizedBox(
-                                    height: 100,
-                                    child:
-                                        CupertinoActivityIndicator())) // Height matches approx card height
+                            ? const SizedBox(
+                                height: 100,
+                                child: CenterLoadingWidget(
+                                    showText:
+                                        false)) // Height matches approx card height
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1226,6 +1047,24 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       ),
                       // END My Spending Card
 
+                      // Category Budget Tracker
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        child: CategoryBudgetTracker(
+                          walletId: primaryWallet.id,
+                          month: _selectedMonth,
+                          onMonthChanged: (newMonth) {
+                            setState(() {
+                              _selectedMonth = newMonth;
+                            });
+                            _loadMySpendingData();
+                            _loadSixMonthChartData();
+                          },
+                          onChooseTemplate: _showTemplatePickerModal,
+                          onEditBudget: _editCurrentBudget,
+                        ),
+                      ),
+
                       // New "Expense" Card with Line Chart and Category List
                       Container(
                         margin: const EdgeInsets.symmetric(
@@ -1280,37 +1119,25 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                       ),
                                     ],
                                   ),
-                                  GestureDetector(
-                                    onTap: _showMonthPicker,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: const Color(0xFFD1D1D6),
-                                          width: 1,
-                                        ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFD1D1D6),
+                                        width: 1,
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            DateFormat('MMM yyyy')
-                                                .format(_selectedMonth),
-                                            style: const TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w400,
-                                              color: Color(0xFF3C3C43),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Icon(Icons.keyboard_arrow_down,
-                                              size: 18,
-                                              color: Color(0xFF3C3C43)),
-                                        ],
+                                    ),
+                                    child: Text(
+                                      DateFormat('MMM yyyy')
+                                          .format(_selectedMonth),
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF3C3C43),
                                       ),
                                     ),
                                   ),
@@ -1323,8 +1150,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             _isSixMonthChartLoading
                                 ? const SizedBox(
                                     height: 120, // Match chart height
-                                    child: Center(
-                                        child: CupertinoActivityIndicator()),
+                                    child: CenterLoadingWidget(showText: false),
                                   )
                                 : Container(
                                     height: 120,

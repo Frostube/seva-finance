@@ -15,7 +15,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   String _userName = '';
@@ -147,24 +148,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 // App Logo
                 Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Seva',
-                        style: GoogleFonts.inter(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1B4332),
-                        ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'SevaFinance',
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1B4332),
+                        letterSpacing: -0.5,
                       ),
-                      Text(
-                        'Finance',
-                        style: GoogleFonts.inter(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -178,11 +172,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         // Profile Image
                         CircleAvatar(
                           radius: 50,
-                          backgroundImage: const AssetImage('assets/images/ChatGPT Image 19 abr 2025, 13_33_51.png'),
+                          backgroundImage: const AssetImage(
+                              'assets/images/ChatGPT Image 19 abr 2025, 13_33_51.png'),
                           backgroundColor: Colors.grey[200],
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Name
                         Text(
                           _isLoading ? 'Loading...' : _userName,
@@ -192,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                           ),
                         ),
                         const SizedBox(height: 4),
-                        
+
                         // Email
                         Text(
                           _isLoading ? 'Loading...' : _userEmail,
@@ -215,17 +210,20 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       _buildSettingsItem(
                         icon: CupertinoIcons.person_fill,
                         title: 'Account',
-                        onTap: () => _navigateWithFade(context, const AccountScreen()),
+                        onTap: () =>
+                            _navigateWithFade(context, const AccountScreen()),
                       ),
                       _buildSettingsItem(
                         icon: CupertinoIcons.creditcard_fill,
                         title: 'Linked Cards',
-                        onTap: () => _navigateWithFade(context, const LinkedCardsScreen()),
+                        onTap: () => _navigateWithFade(
+                            context, const LinkedCardsScreen()),
                       ),
                       _buildSettingsItem(
                         icon: CupertinoIcons.slider_horizontal_3,
                         title: 'Preferences',
-                        onTap: () => _navigateWithFade(context, const PreferencesScreen()),
+                        onTap: () => _navigateWithFade(
+                            context, const PreferencesScreen()),
                       ),
                       _buildSettingsItem(
                         icon: CupertinoIcons.paperplane_fill,
@@ -236,12 +234,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       _buildSettingsItem(
                         icon: CupertinoIcons.wrench_fill,
                         title: 'Onboarding Debug',
-                        onTap: () => _navigateWithFade(context, const OnboardingDebugScreen()),
+                        onTap: () => _navigateWithFade(
+                            context, const OnboardingDebugScreen()),
                       ),
                     ],
                   ),
                 ),
-                
+
                 // Bottom Spacing for Navigation Bar
                 const SizedBox(height: 80),
               ],
@@ -251,4 +250,4 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       ),
     );
   }
-} 
+}

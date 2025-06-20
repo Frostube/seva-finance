@@ -129,8 +129,21 @@ class BudgetTemplateService with ChangeNotifier {
   }
 
   void _loadFromCache() {
-    _templates = _templatesBox.values.toList();
-    _templateItems = _templateItemsBox.values.toList();
+    try {
+      _templates = _templatesBox.values.toList();
+      _templateItems = _templateItemsBox.values.toList();
+      print(
+          'BudgetTemplateService: Successfully loaded ${_templates.length} templates from cache');
+    } catch (e) {
+      print(
+          'BudgetTemplateService: Error loading from cache (likely schema mismatch): $e');
+      print('BudgetTemplateService: Clearing cache and forcing fresh sync...');
+      // Clear cache if there's a schema mismatch
+      _templatesBox.clear();
+      _templateItemsBox.clear();
+      _templates = [];
+      _templateItems = [];
+    }
   }
 
   Future<void> _syncWithFirestore() async {
@@ -223,12 +236,40 @@ class BudgetTemplateService with ChangeNotifier {
 
       // Create a map of existing template names to avoid duplicates
       final existingTemplateNames = <String, List<String>>{};
+      final templatesToUpdate = <String>[];
+
       for (final doc in existingSystemTemplates.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final name = data['name'] as String;
         existingTemplateNames.putIfAbsent(name, () => []).add(doc.id);
+
+        // Check if template needs timeline/endDate fields added
+        if (!data.containsKey('timeline') || !data.containsKey('endDate')) {
+          templatesToUpdate.add(doc.id);
+          print(
+              'BudgetTemplateService: Template "$name" (ID: ${doc.id}) needs timeline fields update');
+        }
+
         print(
             'BudgetTemplateService: Existing template: "$name" (ID: ${doc.id})');
+      }
+
+      // Update existing templates that are missing new fields
+      for (final templateId in templatesToUpdate) {
+        try {
+          await _firestore
+              .collection('budgetTemplates')
+              .doc(templateId)
+              .update({
+            'timeline': BudgetTimeline.monthly.index,
+            'endDate': null,
+          });
+          print(
+              'BudgetTemplateService: Updated template $templateId with timeline fields');
+        } catch (e) {
+          print(
+              'BudgetTemplateService: Error updating template $templateId: $e');
+        }
       }
 
       // Show duplicates
@@ -239,10 +280,14 @@ class BudgetTemplateService with ChangeNotifier {
         }
       }
 
-      // Only create templates that don't exist at all
+      // Create missing templates and update outdated ones
       int createdCount = 0;
+      int updatedCount = 0;
+
       for (final templateData in systemTemplatesData) {
         final templateName = templateData['template']['name'] as String;
+        final expectedItems =
+            templateData['items'] as List<Map<String, dynamic>>;
 
         if (!existingTemplateNames.containsKey(templateName)) {
           print(
@@ -255,9 +300,8 @@ class BudgetTemplateService with ChangeNotifier {
                 .add(templateData['template'] as Map<String, dynamic>);
 
             // Add template items
-            final items = templateData['items'] as List<Map<String, dynamic>>;
-            for (int i = 0; i < items.length; i++) {
-              final item = items[i];
+            for (int i = 0; i < expectedItems.length; i++) {
+              final item = expectedItems[i];
               item['order'] = i;
               item['templateId'] = templateRef.id;
               await templateRef.collection('items').add(item);
@@ -271,20 +315,150 @@ class BudgetTemplateService with ChangeNotifier {
                 'BudgetTemplateService: Error creating template $templateName: $e');
           }
         } else {
-          print(
-              'BudgetTemplateService: Template "$templateName" already exists (${existingTemplateNames[templateName]!.length} copies), skipping creation');
+          // Check if existing template needs updating (has outdated values)
+          final templateIds = existingTemplateNames[templateName]!;
+          final primaryTemplateId =
+              templateIds.first; // Use first one if duplicates exist
+
+          final needsUpdate = await _checkIfTemplateNeedsUpdate(
+              primaryTemplateId, expectedItems);
+
+          if (needsUpdate) {
+            print(
+                'BudgetTemplateService: Updating outdated template: $templateName');
+            try {
+              await _updateTemplateItems(primaryTemplateId, expectedItems);
+              updatedCount++;
+              print(
+                  'BudgetTemplateService: Successfully updated template: $templateName');
+            } catch (e) {
+              print(
+                  'BudgetTemplateService: Error updating template $templateName: $e');
+            }
+          } else {
+            print(
+                'BudgetTemplateService: Template "$templateName" is up to date');
+          }
         }
       }
 
-      if (createdCount > 0) {
-        print('BudgetTemplateService: Created $createdCount new templates');
-        // Refresh templates after seeding
+      if (createdCount > 0 || updatedCount > 0) {
+        print(
+            'BudgetTemplateService: Created $createdCount new templates, updated $updatedCount templates');
+        // Refresh templates after seeding/updating
         await _syncWithFirestore();
       } else {
-        print('BudgetTemplateService: No new templates needed');
+        print('BudgetTemplateService: No template changes needed');
       }
     } catch (e) {
       print('Error seeding system templates: $e');
+    }
+  }
+
+  // Check if a template needs updating by comparing existing items with expected items
+  Future<bool> _checkIfTemplateNeedsUpdate(
+      String templateId, List<Map<String, dynamic>> expectedItems) async {
+    try {
+      // Get existing template items from Firestore
+      final existingItemsQuery = await _firestore
+          .collection('budgetTemplates')
+          .doc(templateId)
+          .collection('items')
+          .get();
+
+      final existingItems = existingItemsQuery.docs;
+
+      // If counts don't match, needs update
+      if (existingItems.length != expectedItems.length) {
+        print(
+            'BudgetTemplateService: Template needs update - item count mismatch (${existingItems.length} vs ${expectedItems.length})');
+        return true;
+      }
+
+      // Check if any amounts are $0 (indicating old template)
+      for (final doc in existingItems) {
+        final data = doc.data() as Map<String, dynamic>;
+        final amount = (data['defaultAmount'] as num?)?.toDouble() ?? 0.0;
+        if (amount == 0.0) {
+          print(
+              'BudgetTemplateService: Template needs update - found \$0 amount');
+          return true;
+        }
+      }
+
+      // Check if expected amounts differ from existing ones
+      for (final expectedItem in expectedItems) {
+        final categoryId = expectedItem['categoryId'] as String;
+        final expectedAmount = expectedItem['defaultAmount'] as double;
+
+        final existingItem = existingItems.firstWhere(
+          (doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['categoryId'] == categoryId;
+          },
+          orElse: () => throw StateError('Not found'),
+        );
+
+        try {
+          final data = existingItem.data() as Map<String, dynamic>;
+          final existingAmount =
+              (data['defaultAmount'] as num?)?.toDouble() ?? 0.0;
+
+          // If amount is significantly different, needs update
+          if (existingAmount != expectedAmount) {
+            print(
+                'BudgetTemplateService: Template needs update - amount mismatch for $categoryId ($existingAmount vs $expectedAmount)');
+            return true;
+          }
+        } catch (e) {
+          // Category doesn't exist, needs update
+          print(
+              'BudgetTemplateService: Template needs update - missing category $categoryId');
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print('BudgetTemplateService: Error checking template update status: $e');
+      return true; // Assume needs update if we can't check
+    }
+  }
+
+  // Update template items with new enhanced values
+  Future<void> _updateTemplateItems(
+      String templateId, List<Map<String, dynamic>> newItems) async {
+    try {
+      // Delete all existing template items
+      final existingItemsQuery = await _firestore
+          .collection('budgetTemplates')
+          .doc(templateId)
+          .collection('items')
+          .get();
+
+      for (final doc in existingItemsQuery.docs) {
+        await doc.reference.delete();
+      }
+
+      // Create new template items with enhanced values
+      for (int i = 0; i < newItems.length; i++) {
+        final item = Map<String, dynamic>.from(newItems[i]);
+        item['order'] = i;
+        item['templateId'] = templateId;
+
+        await _firestore
+            .collection('budgetTemplates')
+            .doc(templateId)
+            .collection('items')
+            .add(item);
+      }
+
+      print(
+          'BudgetTemplateService: Successfully updated template items for $templateId');
+    } catch (e) {
+      print(
+          'BudgetTemplateService: Error updating template items for $templateId: $e');
+      rethrow;
     }
   }
 
@@ -432,48 +606,88 @@ class BudgetTemplateService with ChangeNotifier {
           'isSystem': true,
           'createdBy': null,
           'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
         },
         'items': [
+          // 50% Needs (2500 total)
           {
             'categoryId': 'housing',
             'categoryName': 'Housing',
             'categoryIcon': _getCategoryIconName('housing'),
-            'defaultAmount': 1250.0,
+            'defaultAmount': 1500.0, // Rent/Mortgage
             'templateId': '',
           },
           {
             'categoryId': 'food',
             'categoryName': 'Food & Dining',
             'categoryIcon': _getCategoryIconName('food'),
-            'defaultAmount': 400.0,
+            'defaultAmount': 500.0, // Groceries + dining
             'templateId': '',
           },
           {
             'categoryId': 'transportation',
             'categoryName': 'Transportation',
             'categoryIcon': _getCategoryIconName('transportation'),
-            'defaultAmount': 350.0,
+            'defaultAmount': 300.0, // Car payment/gas/public transport
             'templateId': '',
           },
+          {
+            'categoryId': 'personal_care',
+            'categoryName': 'Personal Care',
+            'categoryIcon': _getCategoryIconName('personal_care'),
+            'defaultAmount': 200.0, // Healthcare, hygiene, etc.
+            'templateId': '',
+          },
+          // 30% Wants (1500 total)
           {
             'categoryId': 'entertainment',
             'categoryName': 'Entertainment',
             'categoryIcon': _getCategoryIconName('entertainment'),
-            'defaultAmount': 300.0,
+            'defaultAmount': 400.0, // Movies, streaming, hobbies
             'templateId': '',
           },
           {
             'categoryId': 'shopping',
             'categoryName': 'Shopping',
             'categoryIcon': _getCategoryIconName('shopping'),
-            'defaultAmount': 450.0,
+            'defaultAmount': 600.0, // Clothes, gadgets, misc
+            'templateId': '',
+          },
+          {
+            'categoryId': 'food',
+            'categoryName': 'Dining Out',
+            'categoryIcon': _getCategoryIconName('food'),
+            'defaultAmount': 300.0, // Restaurant meals
+            'templateId': '',
+          },
+          {
+            'categoryId': 'travel_savings',
+            'categoryName': 'Travel & Vacation',
+            'categoryIcon': _getCategoryIconName('travel_savings'),
+            'defaultAmount': 200.0, // Weekend trips, vacations
+            'templateId': '',
+          },
+          // 20% Savings (1000 total)
+          {
+            'categoryId': 'emergency_fund',
+            'categoryName': 'Emergency Fund',
+            'categoryIcon': _getCategoryIconName('emergency_fund'),
+            'defaultAmount': 400.0, // 3-6 months expenses
             'templateId': '',
           },
           {
             'categoryId': 'savings',
-            'categoryName': 'Savings',
+            'categoryName': 'General Savings',
             'categoryIcon': _getCategoryIconName('savings'),
-            'defaultAmount': 500.0,
+            'defaultAmount': 400.0, // Long-term goals
+            'templateId': '',
+          },
+          {
+            'categoryId': 'general_savings',
+            'categoryName': 'Investment Fund',
+            'categoryIcon': _getCategoryIconName('general_savings'),
+            'defaultAmount': 200.0, // Stock market, retirement
             'templateId': '',
           },
         ],
@@ -485,41 +699,64 @@ class BudgetTemplateService with ChangeNotifier {
           'isSystem': true,
           'createdBy': null,
           'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
         },
         'items': [
           {
             'categoryId': 'education',
             'categoryName': 'Education',
             'categoryIcon': _getCategoryIconName('education'),
-            'defaultAmount': 800.0,
+            'defaultAmount': 600.0, // Tuition, books, supplies
+            'templateId': '',
+          },
+          {
+            'categoryId': 'housing',
+            'categoryName': 'Housing',
+            'categoryIcon': _getCategoryIconName('housing'),
+            'defaultAmount': 800.0, // Dorm/apartment rent
             'templateId': '',
           },
           {
             'categoryId': 'food',
             'categoryName': 'Food & Dining',
             'categoryIcon': _getCategoryIconName('food'),
-            'defaultAmount': 300.0,
+            'defaultAmount': 400.0, // Meal plan + groceries
             'templateId': '',
           },
           {
             'categoryId': 'transportation',
             'categoryName': 'Transportation',
             'categoryIcon': _getCategoryIconName('transportation'),
-            'defaultAmount': 150.0,
+            'defaultAmount': 150.0, // Bus pass, gas, bike maintenance
             'templateId': '',
           },
           {
             'categoryId': 'entertainment',
             'categoryName': 'Entertainment',
             'categoryIcon': _getCategoryIconName('entertainment'),
-            'defaultAmount': 100.0,
+            'defaultAmount': 200.0, // Movies, games, social activities
             'templateId': '',
           },
           {
             'categoryId': 'personal_care',
             'categoryName': 'Personal Care',
             'categoryIcon': _getCategoryIconName('personal_care'),
-            'defaultAmount': 50.0,
+            'defaultAmount': 100.0, // Hygiene, healthcare, gym
+            'templateId': '',
+          },
+          {
+            'categoryId': 'shopping',
+            'categoryName': 'Shopping',
+            'categoryIcon': _getCategoryIconName('shopping'),
+            'defaultAmount': 150.0, // Clothes, electronics, misc
+            'templateId': '',
+          },
+          {
+            'categoryId': 'emergency_fund',
+            'categoryName': 'Emergency Fund',
+            'categoryIcon': _getCategoryIconName('emergency_fund'),
+            'defaultAmount': 100.0, // Small emergency savings
             'templateId': '',
           },
         ],
@@ -531,41 +768,71 @@ class BudgetTemplateService with ChangeNotifier {
           'isSystem': true,
           'createdBy': null,
           'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
         },
         'items': [
           {
             'categoryId': 'business',
             'categoryName': 'Business Expenses',
             'categoryIcon': _getCategoryIconName('business'),
-            'defaultAmount': 1000.0,
-            'templateId': '',
-          },
-          {
-            'categoryId': 'housing',
-            'categoryName': 'Housing',
-            'categoryIcon': _getCategoryIconName('housing'),
-            'defaultAmount': 1200.0,
-            'templateId': '',
-          },
-          {
-            'categoryId': 'food',
-            'categoryName': 'Food & Dining',
-            'categoryIcon': _getCategoryIconName('food'),
-            'defaultAmount': 400.0,
+            'defaultAmount': 1500.0, // Office, equipment, software
             'templateId': '',
           },
           {
             'categoryId': 'taxes',
             'categoryName': 'Taxes',
             'categoryIcon': _getCategoryIconName('taxes'),
-            'defaultAmount': 600.0,
+            'defaultAmount': 800.0, // Quarterly tax savings
+            'templateId': '',
+          },
+          {
+            'categoryId': 'housing',
+            'categoryName': 'Housing',
+            'categoryIcon': _getCategoryIconName('housing'),
+            'defaultAmount': 1400.0, // Mortgage/rent
+            'templateId': '',
+          },
+          {
+            'categoryId': 'food',
+            'categoryName': 'Food & Dining',
+            'categoryIcon': _getCategoryIconName('food'),
+            'defaultAmount': 600.0, // Groceries + business meals
+            'templateId': '',
+          },
+          {
+            'categoryId': 'transportation',
+            'categoryName': 'Transportation',
+            'categoryIcon': _getCategoryIconName('transportation'),
+            'defaultAmount': 400.0, // Car payment, gas, business travel
+            'templateId': '',
+          },
+          {
+            'categoryId': 'personal_care',
+            'categoryName': 'Personal Care',
+            'categoryIcon': _getCategoryIconName('personal_care'),
+            'defaultAmount': 250.0, // Healthcare, professional appearance
             'templateId': '',
           },
           {
             'categoryId': 'emergency_fund',
             'categoryName': 'Emergency Fund',
             'categoryIcon': _getCategoryIconName('emergency_fund'),
-            'defaultAmount': 300.0,
+            'defaultAmount': 500.0, // Business + personal emergencies
+            'templateId': '',
+          },
+          {
+            'categoryId': 'savings',
+            'categoryName': 'Business Savings',
+            'categoryIcon': _getCategoryIconName('savings'),
+            'defaultAmount': 400.0, // Equipment upgrades, expansion
+            'templateId': '',
+          },
+          {
+            'categoryId': 'entertainment',
+            'categoryName': 'Entertainment',
+            'categoryIcon': _getCategoryIconName('entertainment'),
+            'defaultAmount': 300.0, // Networking, leisure
             'templateId': '',
           },
         ],
@@ -577,48 +844,286 @@ class BudgetTemplateService with ChangeNotifier {
           'isSystem': true,
           'createdBy': null,
           'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
         },
         'items': [
           {
             'categoryId': 'housing',
             'categoryName': 'Housing',
             'categoryIcon': _getCategoryIconName('housing'),
-            'defaultAmount': 800.0,
+            'defaultAmount': 1000.0, // Minimal housing costs
             'templateId': '',
           },
           {
             'categoryId': 'food',
             'categoryName': 'Food & Dining',
             'categoryIcon': _getCategoryIconName('food'),
-            'defaultAmount': 250.0,
+            'defaultAmount': 300.0, // Budget-conscious grocery shopping
             'templateId': '',
           },
           {
             'categoryId': 'transportation',
             'categoryName': 'Transportation',
             'categoryIcon': _getCategoryIconName('transportation'),
-            'defaultAmount': 200.0,
+            'defaultAmount': 250.0, // Public transport, bike, efficient car
+            'templateId': '',
+          },
+          {
+            'categoryId': 'personal_care',
+            'categoryName': 'Personal Care',
+            'categoryIcon': _getCategoryIconName('personal_care'),
+            'defaultAmount': 150.0, // Essential healthcare and hygiene
+            'templateId': '',
+          },
+          {
+            'categoryId': 'entertainment',
+            'categoryName': 'Entertainment',
+            'categoryIcon': _getCategoryIconName('entertainment'),
+            'defaultAmount': 200.0, // Free/low-cost activities
             'templateId': '',
           },
           {
             'categoryId': 'emergency_fund',
             'categoryName': 'Emergency Fund',
             'categoryIcon': _getCategoryIconName('emergency_fund'),
-            'defaultAmount': 400.0,
+            'defaultAmount': 600.0, // 6+ months expenses
             'templateId': '',
           },
           {
             'categoryId': 'travel_savings',
             'categoryName': 'Travel Savings',
             'categoryIcon': _getCategoryIconName('travel_savings'),
-            'defaultAmount': 300.0,
+            'defaultAmount': 400.0, // Dream vacation fund
             'templateId': '',
           },
           {
             'categoryId': 'general_savings',
-            'categoryName': 'General Savings',
+            'categoryName': 'Investment Fund',
             'categoryIcon': _getCategoryIconName('general_savings'),
-            'defaultAmount': 500.0,
+            'defaultAmount': 500.0, // Stock market, retirement
+            'templateId': '',
+          },
+          {
+            'categoryId': 'savings',
+            'categoryName': 'House Down Payment',
+            'categoryIcon': _getCategoryIconName('savings'),
+            'defaultAmount': 800.0, // Major purchase savings
+            'templateId': '',
+          },
+        ],
+      },
+      {
+        'template': {
+          'name': 'Young Professional',
+          'description': 'Budget for early career professionals',
+          'isSystem': true,
+          'createdBy': null,
+          'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
+        },
+        'items': [
+          {
+            'categoryId': 'housing',
+            'categoryName': 'Housing',
+            'categoryIcon': _getCategoryIconName('housing'),
+            'defaultAmount': 1200.0, // Apartment rent
+            'templateId': '',
+          },
+          {
+            'categoryId': 'food',
+            'categoryName': 'Food & Dining',
+            'categoryIcon': _getCategoryIconName('food'),
+            'defaultAmount': 500.0, // Groceries + frequent dining out
+            'templateId': '',
+          },
+          {
+            'categoryId': 'transportation',
+            'categoryName': 'Transportation',
+            'categoryIcon': _getCategoryIconName('transportation'),
+            'defaultAmount': 350.0, // Car payment, insurance, gas
+            'templateId': '',
+          },
+          {
+            'categoryId': 'personal_care',
+            'categoryName': 'Personal Care',
+            'categoryIcon': _getCategoryIconName('personal_care'),
+            'defaultAmount': 200.0, // Gym, healthcare, grooming
+            'templateId': '',
+          },
+          {
+            'categoryId': 'entertainment',
+            'categoryName': 'Entertainment',
+            'categoryIcon': _getCategoryIconName('entertainment'),
+            'defaultAmount': 400.0, // Social life, hobbies, streaming
+            'templateId': '',
+          },
+          {
+            'categoryId': 'shopping',
+            'categoryName': 'Shopping',
+            'categoryIcon': _getCategoryIconName('shopping'),
+            'defaultAmount': 300.0, // Professional clothes, gadgets
+            'templateId': '',
+          },
+          {
+            'categoryId': 'education',
+            'categoryName': 'Education',
+            'categoryIcon': _getCategoryIconName('education'),
+            'defaultAmount': 150.0, // Courses, certifications, books
+            'templateId': '',
+          },
+          {
+            'categoryId': 'emergency_fund',
+            'categoryName': 'Emergency Fund',
+            'categoryIcon': _getCategoryIconName('emergency_fund'),
+            'defaultAmount': 300.0, // Building up emergency savings
+            'templateId': '',
+          },
+          {
+            'categoryId': 'savings',
+            'categoryName': 'General Savings',
+            'categoryIcon': _getCategoryIconName('savings'),
+            'defaultAmount': 400.0, // Future goals
+            'templateId': '',
+          },
+        ],
+      },
+      {
+        'template': {
+          'name': 'Vacation Saver',
+          'description': 'Special budget for vacation planning',
+          'isSystem': true,
+          'createdBy': null,
+          'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.yearly.index,
+          'endDate':
+              DateTime.now().add(const Duration(days: 365)).toIso8601String(),
+        },
+        'items': [
+          {
+            'categoryId': 'travel_savings',
+            'categoryName': 'Flight Tickets',
+            'categoryIcon': _getCategoryIconName('travel_savings'),
+            'defaultAmount': 1200.0, // Round-trip international flights
+            'templateId': '',
+          },
+          {
+            'categoryId': 'travel_savings',
+            'categoryName': 'Accommodation',
+            'categoryIcon': _getCategoryIconName('travel_savings'),
+            'defaultAmount': 1500.0, // Hotels for 2 weeks
+            'templateId': '',
+          },
+          {
+            'categoryId': 'food',
+            'categoryName': 'Food & Dining',
+            'categoryIcon': _getCategoryIconName('food'),
+            'defaultAmount': 800.0, // Restaurant meals during vacation
+            'templateId': '',
+          },
+          {
+            'categoryId': 'entertainment',
+            'categoryName': 'Activities & Tours',
+            'categoryIcon': _getCategoryIconName('entertainment'),
+            'defaultAmount': 600.0, // Sightseeing, tours, experiences
+            'templateId': '',
+          },
+          {
+            'categoryId': 'transportation',
+            'categoryName': 'Local Transport',
+            'categoryIcon': _getCategoryIconName('transportation'),
+            'defaultAmount': 300.0, // Taxis, trains, car rental
+            'templateId': '',
+          },
+          {
+            'categoryId': 'shopping',
+            'categoryName': 'Shopping & Souvenirs',
+            'categoryIcon': _getCategoryIconName('shopping'),
+            'defaultAmount': 400.0, // Gifts, souvenirs, shopping
+            'templateId': '',
+          },
+          {
+            'categoryId': 'emergency_fund',
+            'categoryName': 'Travel Emergency',
+            'categoryIcon': _getCategoryIconName('emergency_fund'),
+            'defaultAmount': 200.0, // Unexpected travel expenses
+            'templateId': '',
+          },
+        ],
+      },
+      {
+        'template': {
+          'name': 'Freelancer Cash-Flow',
+          'description': 'Budget for freelancers with irregular income',
+          'isSystem': true,
+          'createdBy': null,
+          'createdAt': DateTime.now().toIso8601String(),
+          'timeline': BudgetTimeline.monthly.index,
+          'endDate': null,
+        },
+        'items': [
+          {
+            'categoryId': 'housing',
+            'categoryName': 'Housing',
+            'categoryIcon': _getCategoryIconName('housing'),
+            'defaultAmount': 1100.0, // Conservative rent estimate
+            'templateId': '',
+          },
+          {
+            'categoryId': 'business',
+            'categoryName': 'Business Expenses',
+            'categoryIcon': _getCategoryIconName('business'),
+            'defaultAmount': 400.0, // Software, equipment, internet
+            'templateId': '',
+          },
+          {
+            'categoryId': 'food',
+            'categoryName': 'Food & Dining',
+            'categoryIcon': _getCategoryIconName('food'),
+            'defaultAmount': 350.0, // Budget-conscious grocery shopping
+            'templateId': '',
+          },
+          {
+            'categoryId': 'transportation',
+            'categoryName': 'Transportation',
+            'categoryIcon': _getCategoryIconName('transportation'),
+            'defaultAmount': 200.0, // Public transport, minimal car use
+            'templateId': '',
+          },
+          {
+            'categoryId': 'personal_care',
+            'categoryName': 'Personal Care',
+            'categoryIcon': _getCategoryIconName('personal_care'),
+            'defaultAmount': 150.0, // Healthcare, basic grooming
+            'templateId': '',
+          },
+          {
+            'categoryId': 'entertainment',
+            'categoryName': 'Entertainment',
+            'categoryIcon': _getCategoryIconName('entertainment'),
+            'defaultAmount': 250.0, // Modest entertainment budget
+            'templateId': '',
+          },
+          {
+            'categoryId': 'emergency_fund',
+            'categoryName': 'Emergency Fund',
+            'categoryIcon': _getCategoryIconName('emergency_fund'),
+            'defaultAmount': 600.0, // Critical for irregular income
+            'templateId': '',
+          },
+          {
+            'categoryId': 'taxes',
+            'categoryName': 'Tax Savings',
+            'categoryIcon': _getCategoryIconName('taxes'),
+            'defaultAmount': 500.0, // Quarterly tax obligations
+            'templateId': '',
+          },
+          {
+            'categoryId': 'savings',
+            'categoryName': 'Income Buffer',
+            'categoryIcon': _getCategoryIconName('savings'),
+            'defaultAmount': 400.0, // Smooth out income variations
             'templateId': '',
           },
         ],
@@ -640,6 +1145,23 @@ class BudgetTemplateService with ChangeNotifier {
     required String description,
     required List<TemplateItem> items,
   }) async {
+    return createTemplateWithTimeline(
+      name: name,
+      description: description,
+      items: items,
+      timeline: BudgetTimeline.monthly,
+      endDate: null,
+    );
+  }
+
+  // Create a new custom template with timeline and end date support
+  Future<BudgetTemplate?> createTemplateWithTimeline({
+    required String name,
+    required String description,
+    required List<TemplateItem> items,
+    BudgetTimeline timeline = BudgetTimeline.monthly,
+    DateTime? endDate,
+  }) async {
     try {
       if (_authService.user == null) {
         throw Exception('User must be authenticated to create templates');
@@ -651,6 +1173,8 @@ class BudgetTemplateService with ChangeNotifier {
         description: description,
         isSystem: false,
         createdBy: _authService.user!.uid,
+        timeline: timeline,
+        endDate: endDate,
       );
 
       // Create template in Firestore
@@ -664,6 +1188,8 @@ class BudgetTemplateService with ChangeNotifier {
         description: description,
         isSystem: false,
         createdBy: _authService.user!.uid,
+        timeline: timeline,
+        endDate: endDate,
       );
 
       // Add template items
@@ -737,7 +1263,14 @@ class BudgetTemplateService with ChangeNotifier {
 
   // Force refresh from Firestore
   Future<void> refresh() async {
-    await _syncWithFirestore();
-    notifyListeners();
+    print('BudgetTemplateService: Force refresh requested');
+    // Clear cache to force fresh data
+    await _templatesBox.clear();
+    await _templateItemsBox.clear();
+    _templates = [];
+    _templateItems = [];
+
+    // Re-initialize everything
+    await _initializeService();
   }
 }

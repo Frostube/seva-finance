@@ -16,7 +16,7 @@ class WalletManagementScreen extends StatelessWidget {
       body: Consumer<WalletService>(
         builder: (context, walletService, child) {
           final wallets = walletService.wallets;
-
+          
           if (wallets.isEmpty) {
             return const Center(
               child:
@@ -113,4 +113,4 @@ class WalletManagementScreen extends StatelessWidget {
       ),
     );
   }
-}
+} 

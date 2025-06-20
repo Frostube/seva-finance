@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../models/budget_template.dart';
 import '../services/budget_template_service.dart';
 import '../screens/budget_creation_screen.dart';
+import '../screens/template_management_screen.dart';
+import 'loading_widget.dart';
 
 class TemplatePickerModal extends StatefulWidget {
   final String walletId;
@@ -40,18 +42,46 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Choose Budget Template',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    'Choose Budget Template',
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TemplateManagementScreen(),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                  ),
+                  child: Text(
+                    'Manage',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: const Color(0xFF1B4332),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(CupertinoIcons.xmark),
+                  padding: const EdgeInsets.all(4),
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),
@@ -62,7 +92,7 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
             child: Consumer<BudgetTemplateService>(
               builder: (context, templateService, child) {
                 if (templateService.isLoading) {
-                  return const Center(child: CupertinoActivityIndicator());
+                  return const CenterLoadingWidget();
                 }
 
                 final templates = templateService.templates;
@@ -122,6 +152,13 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
       BudgetTemplate template, BudgetTemplateService templateService) {
     // Get template items for this template
     final templateItems = templateService.getTemplateItems(template.id);
+
+    // Debug: Print template items and their amounts
+    print('Template: ${template.name} (${template.id})');
+    print('Template items count: ${templateItems.length}');
+    for (final item in templateItems) {
+      print('  - ${item.categoryId}: \$${item.defaultAmount}');
+    }
 
     return GestureDetector(
       onTap: () {
@@ -193,6 +230,46 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
                 fontSize: 14,
                 color: Colors.grey[600],
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B4332).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    template.timelineDisplayText,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1B4332),
+                    ),
+                  ),
+                ),
+                if (template.endDateDisplayText != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Until ${template.endDateDisplayText}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (templateItems.isNotEmpty) ...[
               const SizedBox(height: 12),

@@ -23,13 +23,15 @@ class BudgetTemplateAdapter extends TypeAdapter<BudgetTemplate> {
       isSystem: fields[3] as bool,
       createdBy: fields[4] as String?,
       createdAt: fields[5] as DateTime?,
+      timeline: fields[6] as BudgetTimeline,
+      endDate: fields[7] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BudgetTemplate obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +43,11 @@ class BudgetTemplateAdapter extends TypeAdapter<BudgetTemplate> {
       ..writeByte(4)
       ..write(obj.createdBy)
       ..writeByte(5)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(6)
+      ..write(obj.timeline)
+      ..writeByte(7)
+      ..write(obj.endDate);
   }
 
   @override
@@ -51,6 +57,50 @@ class BudgetTemplateAdapter extends TypeAdapter<BudgetTemplate> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BudgetTemplateAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class BudgetTimelineAdapter extends TypeAdapter<BudgetTimeline> {
+  @override
+  final int typeId = 16;
+
+  @override
+  BudgetTimeline read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return BudgetTimeline.monthly;
+      case 1:
+        return BudgetTimeline.yearly;
+      case 2:
+        return BudgetTimeline.undefined;
+      default:
+        return BudgetTimeline.monthly;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, BudgetTimeline obj) {
+    switch (obj) {
+      case BudgetTimeline.monthly:
+        writer.writeByte(0);
+        break;
+      case BudgetTimeline.yearly:
+        writer.writeByte(1);
+        break;
+      case BudgetTimeline.undefined:
+        writer.writeByte(2);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BudgetTimelineAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
