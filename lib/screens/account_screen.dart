@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'personal_details_screen.dart';
 import 'change_password_screen.dart';
 import 'welcome_screen.dart';
+import 'export_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -17,7 +18,8 @@ class AccountScreen extends StatefulWidget {
   State<AccountScreen> createState() => _AccountScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen> with SingleTickerProviderStateMixin {
+class _AccountScreenState extends State<AccountScreen>
+    with SingleTickerProviderStateMixin {
   bool _isTwoFactorEnabled = false;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -91,7 +93,7 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -125,9 +127,10 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 24),
-                
+
                 // Personal Details Section
-                _buildSectionTitle('Personal Details', CupertinoIcons.person_crop_circle),
+                _buildSectionTitle(
+                    'Personal Details', CupertinoIcons.person_crop_circle),
                 const SizedBox(height: 16),
                 Hero(
                   tag: 'personal_details_card',
@@ -155,16 +158,21 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                           Navigator.push(
                             context,
                             PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => const PersonalDetailsScreen(),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const PersonalDetailsScreen(),
+                              transitionsBuilder: (context, animation,
+                                  secondaryAnimation, child) {
                                 return FadeTransition(
                                   opacity: animation,
                                   child: child,
                                 );
                               },
-                              transitionDuration: const Duration(milliseconds: 300),
+                              transitionDuration:
+                                  const Duration(milliseconds: 300),
                             ),
-                          ).then((_) => _loadUserData()); // Reload data when returning from PersonalDetailsScreen
+                          ).then((_) =>
+                              _loadUserData()); // Reload data when returning from PersonalDetailsScreen
                         },
                         child: Row(
                           children: [
@@ -184,36 +192,38 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                             const SizedBox(width: 16),
                             Expanded(
                               child: _isLoading
-                                ? const Center(child: CircularProgressIndicator())
-                                : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _userData?['name'] ?? 'No name set',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
+                                  ? const Center(
+                                      child: CircularProgressIndicator())
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _userData?['name'] ?? 'No name set',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        user?.email ?? 'No email set',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          user?.email ?? 'No email set',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _userData?['phone'] ?? 'No phone set',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _userData?['phone'] ?? 'No phone set',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    ),
                             ),
                             Icon(
                               CupertinoIcons.chevron_right,
@@ -255,14 +265,18 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                           Navigator.push(
                             context,
                             PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => const ChangePasswordScreen(),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const ChangePasswordScreen(),
+                              transitionsBuilder: (context, animation,
+                                  secondaryAnimation, child) {
                                 return FadeTransition(
                                   opacity: animation,
                                   child: child,
                                 );
                               },
-                              transitionDuration: const Duration(milliseconds: 300),
+                              transitionDuration:
+                                  const Duration(milliseconds: 300),
                             ),
                           );
                         },
@@ -318,8 +332,106 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
 
                 const SizedBox(height: 32),
 
+                // Data Management Section
+                _buildSectionTitle(
+                    'Data Management', CupertinoIcons.folder_fill),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[200]!,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const ExportScreen(),
+                              transitionsBuilder: (context, animation,
+                                  secondaryAnimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              transitionDuration:
+                                  const Duration(milliseconds: 300),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFF1B4332).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.cloud_download,
+                                  color: Color(0xFF1B4332),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Export Data',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Download your expenses as CSV or Excel',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                CupertinoIcons.chevron_right,
+                                size: 20,
+                                color: Colors.grey[400],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
                 // Account Actions Section
-                _buildSectionTitle('Account Actions', CupertinoIcons.gear_alt_fill),
+                _buildSectionTitle(
+                    'Account Actions', CupertinoIcons.gear_alt_fill),
                 const SizedBox(height: 16),
                 Container(
                   decoration: BoxDecoration(
@@ -424,17 +536,18 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                 print('DEBUG: User confirmed account deletion');
                 // Close the dialog first
                 Navigator.of(context).pop();
-                
-                final authService = Provider.of<AuthService>(context, listen: false);
+
+                final authService =
+                    Provider.of<AuthService>(context, listen: false);
                 print('DEBUG: Starting account deletion process');
                 print('DEBUG: Current user: ${authService.user?.email}');
-                
+
                 try {
                   // Delete the account first while we still have a valid context
                   print('DEBUG: Calling authService.deleteAccount()');
                   await authService.deleteAccount();
                   print('DEBUG: Account deletion successful');
-                  
+
                   // Show success message
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -444,10 +557,12 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                         duration: Duration(seconds: 3),
                       ),
                     );
-                    
+
                     // Navigate to welcome screen after showing the success message
-                    print('DEBUG: Navigating to welcome screen after successful deletion');
-                    await Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    print(
+                        'DEBUG: Navigating to welcome screen after successful deletion');
+                    await Navigator.of(context, rootNavigator: true)
+                        .pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (context) => const WelcomeScreen(),
                         settings: const RouteSettings(name: '/welcome'),
@@ -455,26 +570,27 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
                       (route) => false,
                     );
                   }
-                  
                 } catch (e) {
                   print('DEBUG: Error during account deletion: $e');
                   if (e is FirebaseAuthException) {
                     print('DEBUG: Firebase Auth Error Code: ${e.code}');
                     print('DEBUG: Firebase Auth Error Message: ${e.message}');
                   }
-                  
+
                   if (context.mounted) {
                     String errorMessage;
                     if (e is FirebaseAuthException) {
                       if (e.code == 'requires-recent-login') {
-                        errorMessage = 'Please log out and log in again before deleting your account';
+                        errorMessage =
+                            'Please log out and log in again before deleting your account';
                       } else {
                         errorMessage = e.message ?? 'Failed to delete account';
                       }
                     } else {
-                      errorMessage = 'Failed to delete account. Please try again.';
+                      errorMessage =
+                          'Failed to delete account. Please try again.';
                     }
-                    
+
                     print('DEBUG: Showing error message: $errorMessage');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -531,21 +647,23 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
               onPressed: () async {
                 try {
                   print('DEBUG: Starting sign out process');
-                  final authService = Provider.of<AuthService>(context, listen: false);
+                  final authService =
+                      Provider.of<AuthService>(context, listen: false);
                   await authService.signOut();
                   print('DEBUG: Sign out successful');
-                  
+
                   if (!context.mounted) return;
-                  
+
                   // Navigate to welcome screen and remove all previous routes
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const WelcomeScreen()),
                     (route) => false,
                   );
                 } catch (e) {
                   print('DEBUG: Error during sign out: $e');
                   if (!context.mounted) return;
-                  
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Failed to sign out. Please try again.'),
@@ -567,4 +685,4 @@ class _AccountScreenState extends State<AccountScreen> with SingleTickerProvider
       },
     );
   }
-} 
+}

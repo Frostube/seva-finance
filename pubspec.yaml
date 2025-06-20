@@ -69,10 +69,17 @@ dependencies:
   firebase_crashlytics: ^3.4.3
   firebase_remote_config: ^4.2.6
   firebase_remote_config_web: ^1.4.6
-  js: ^0.7.0
+  js: ^0.6.7
   image_picker: ^1.1.2
   image_gallery_saver: ^2.0.3
   permission_handler: ^12.0.0+1
+  
+  # CSV/Excel Import & Export
+  csv: ^6.0.0
+  excel: ^4.0.6
+  file_picker: ^8.0.7
+  path_provider: ^2.1.4
+  universal_html: ^2.2.4
 
 dev_dependencies:
   flutter_test:

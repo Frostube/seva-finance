@@ -50,6 +50,19 @@ service cloud.firestore {
       match /categoryBudgets/{budgetId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Import/Export collections
+      match /importPresets/{presetId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /importActivity/{activityId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /exportActivity/{activityId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Recurring Transactions collection - user-specific access

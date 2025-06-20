@@ -27,6 +27,8 @@ import '../models/budget_template.dart';
 import '../models/template_item.dart';
 import 'budget_creation_screen.dart';
 import 'ocr_screen.dart'; // Added for OCR screen navigation
+import 'import_screen.dart';
+import 'export_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -357,7 +359,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     print(
         'ExpensesScreen: Updating cached values for ${DateFormat('MMMM yyyy').format(_selectedMonth)}');
     setState(() {
-     _refreshCounter++;
+      _refreshCounter++;
     });
   }
 
@@ -520,6 +522,69 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     _showRemoveBudgetScreen();
                   },
                 ),
+                const Divider(height: 32),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F1EC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.cloud_upload,
+                      color: Color(0xFF1B4332),
+                    ),
+                  ),
+                  title: Text(
+                    'Import Expenses',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Upload CSV/Excel files',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showImportScreen();
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F1EC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.cloud_download,
+                      color: Color(0xFF1B4332),
+                    ),
+                  ),
+                  title: Text(
+                    'Export Expenses',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Download as CSV/Excel',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showExportScreen();
+                  },
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -549,6 +614,24 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           currentBudget: _monthlyBudget ?? 0.0,
           onBudgetUpdated: _loadBudget,
         ),
+      ),
+    );
+  }
+
+  void _showImportScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ImportScreen(),
+      ),
+    ).then((_) => _refreshScreen());
+  }
+
+  void _showExportScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ExportScreen(),
       ),
     );
   }
