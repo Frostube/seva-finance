@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'recurring_transaction.g.dart';
 
-@HiveType(typeId: 17)
+@HiveType(typeId: 19)
 class RecurringTransaction extends HiveObject {
   @HiveField(0)
   String id;

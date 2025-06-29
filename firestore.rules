@@ -36,6 +36,11 @@ service cloud.firestore {
       match /analytics/{eventId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Insights subcollection for AI-generated insights
+      match /insights/{insightId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
       
       // Add other subcollections like 'savingsGoals', 'spendingAlerts' if they exist
       // and follow the same user-specific pattern.
@@ -62,6 +67,17 @@ service cloud.firestore {
 
       match /exportActivity/{activityId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Coach Tips collection - user-specific access
+    match /coach_tips/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /tips/{tipId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.userId == userId;
+        allow update: if request.auth != null && request.auth.uid == userId && resource.data.userId == userId;
       }
     }
 

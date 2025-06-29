@@ -1,0 +1,124 @@
+{
+  "tooltips": {
+    "category": "A bucket you assign expenses to—e.g. Food, Rent, Transportation. This helps you organize and track spending patterns.",
+    "budget": "The maximum amount you plan to spend in a category during a specific period. Set budgets to control your expenses.",
+    "recurring": "Mark this expense to repeat automatically on the schedule you set—weekly, monthly, or yearly.",
+    "wallet": "Your current available balance across all connected accounts and cards.",
+    "savings_goal": "A target amount you want to save for something specific, like a vacation or emergency fund.",
+    "spending_alert": "Get notified when you're approaching or exceeding your budget limits for any category.",
+    "insights": "AI-powered analysis of your spending patterns and personalized recommendations to improve your finances.",
+    "analytics": "Visual reports and charts showing your spending trends, budget performance, and financial progress over time.",
+    "receipt_scan": "Use your camera to automatically capture expense details from receipts—no manual entry needed!",
+    "export": "Download your financial data as CSV or Excel files for external analysis or record keeping."
+  },
+  "faqs": [
+    {
+      "id": "getting_started_1",
+      "topic": "Getting Started",
+      "question": "What is a Category?",
+      "answer": "A category is a way to organize your expenses into groups like Food, Rent, Transportation, Entertainment, etc. This helps you understand where your money goes and makes budgeting easier."
+    },
+    {
+      "id": "getting_started_2", 
+      "topic": "Getting Started",
+      "question": "How do I add my first expense?",
+      "answer": "Go to the Budget tab, tap the '+' button, then either manually enter your expense details or use the camera to scan a receipt. The app will automatically extract the amount and details."
+    },
+    {
+      "id": "budgets_1",
+      "topic": "Budgets",
+      "question": "How do I set a budget?",
+      "answer": "Go to Budget → Manage Budgets, tap 'Add Budget', choose a category, set your monthly limit, and save. You'll get alerts when you're approaching the limit."
+    },
+    {
+      "id": "budgets_2",
+      "topic": "Budgets", 
+      "question": "Can I set different budgets for different months?",
+      "answer": "Yes! You can create custom budgets for specific months or use budget templates for recurring monthly budgets. Go to Budget settings to manage both options."
+    },
+    {
+      "id": "budgets_3",
+      "topic": "Budgets",
+      "question": "What happens when I exceed my budget?",
+      "answer": "You'll receive a notification alerting you that you've exceeded your budget. The app will show the overage amount and suggest ways to get back on track."
+    },
+    {
+      "id": "expenses_1", 
+      "topic": "Expenses",
+      "question": "How does receipt scanning work?",
+      "answer": "Tap the camera icon when adding an expense, point your camera at the receipt, and tap to capture. Our AI will extract the merchant name, amount, date, and suggest a category automatically."
+    },
+    {
+      "id": "expenses_2",
+      "topic": "Expenses",
+      "question": "Can I edit expenses after adding them?",
+      "answer": "Yes! Tap on any expense in your list to edit the amount, category, date, or notes. Changes are saved automatically."
+    },
+    {
+      "id": "expenses_3",
+      "topic": "Expenses", 
+      "question": "How do recurring expenses work?",
+      "answer": "When adding an expense, toggle 'Recurring' and set the frequency (weekly, monthly, yearly). The app will automatically add this expense on the schedule you set."
+    },
+    {
+      "id": "savings_1",
+      "topic": "Savings & Goals",
+      "question": "How do I set a savings goal?",
+      "answer": "Go to Dashboard → Add Goal, enter your goal name, target amount, and deadline. Track your progress and get motivated with visual progress indicators."
+    },
+    {
+      "id": "savings_2", 
+      "topic": "Savings & Goals",
+      "question": "Can I have multiple savings goals?",
+      "answer": "Absolutely! Create separate goals for vacation, emergency fund, new car, etc. Each goal tracks independently and shows individual progress."
+    },
+    {
+      "id": "alerts_1",
+      "topic": "Alerts & Notifications",
+      "question": "How do spending alerts work?",
+      "answer": "Set spending alerts to get notified at 50%, 80%, or 100% of your budget. Go to Dashboard → Add Alert to customize notifications for each category."
+    },
+    {
+      "id": "alerts_2",
+      "topic": "Alerts & Notifications", 
+      "question": "Can I turn off notifications?",
+      "answer": "Yes! Go to Profile → Notification Settings to customize which alerts you receive and how often. You can disable specific types or all notifications."
+    },
+    {
+      "id": "insights_1",
+      "topic": "Insights & Analytics",
+      "question": "What are AI Insights?",
+      "answer": "AI Insights analyze your spending patterns and provide personalized recommendations, like suggesting budget adjustments or highlighting unusual spending trends."
+    },
+    {
+      "id": "insights_2",
+      "topic": "Insights & Analytics",
+      "question": "How often are insights updated?",
+      "answer": "Insights refresh daily and after significant spending activity. The more you use the app, the more accurate and personalized your insights become."
+    },
+    {
+      "id": "data_1",
+      "topic": "Data & Privacy",
+      "question": "Is my financial data secure?",
+      "answer": "Yes! All data is encrypted and stored securely with Firebase. We never share your personal financial information with third parties."
+    },
+    {
+      "id": "data_2",
+      "topic": "Data & Privacy",
+      "question": "Can I export my data?",
+      "answer": "Yes! Go to Profile → Data Export to download your expenses, budgets, and goals as CSV or Excel files for your records or external analysis."
+    },
+    {
+      "id": "troubleshooting_1",
+      "topic": "Troubleshooting",
+      "question": "The app is running slowly. What should I do?",
+      "answer": "Try closing and reopening the app, or restart your device. If problems persist, go to Profile → Report Issue to contact support."
+    },
+    {
+      "id": "troubleshooting_2", 
+      "topic": "Troubleshooting",
+      "question": "Receipt scanning isn't working properly.",
+      "answer": "Ensure good lighting and hold the camera steady. Clean receipts work best. If issues persist, you can always enter expenses manually and contact support."
+    }
+  ]
+} 

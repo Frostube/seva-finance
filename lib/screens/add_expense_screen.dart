@@ -10,6 +10,7 @@ import '../models/expense.dart';
 import '../models/expense_category.dart';
 import '../models/recurring_transaction.dart';
 import '../utils/icon_utils.dart';
+import '../widgets/help_icon.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -479,6 +480,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   value: _getCategoryDisplayName(),
                   icon: CupertinoIcons.tag_fill,
                   onTap: _showCategoryPicker,
+                  helpKey: 'category',
+                  faqId: 'getting_started_1',
                 ),
 
                 const Divider(height: 1, indent: 16, endIndent: 16),
@@ -644,6 +647,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     bool isTextField = false,
     TextEditingController? controller,
     String? hintText,
+    String? helpKey,
+    String? faqId,
   }) {
     return Material(
       color: Colors.transparent,
@@ -670,12 +675,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          label,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (helpKey != null) ...[
+                          const SizedBox(width: 6),
+                          HelpIcon(
+                            tooltipKey: helpKey,
+                            faqId: faqId,
+                            size: 14,
+                          ),
+                        ],
+                      ],
                     ),
                     if (isTextField)
                       TextField(
@@ -762,12 +779,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Make this recurring',
-                        style: GoogleFonts.inter(
-                          fontSize: 17,
-                          color: Colors.black,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Make this recurring',
+                            style: GoogleFonts.inter(
+                              fontSize: 17,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          HelpIcon(
+                            tooltipKey: 'recurring',
+                            faqId: 'expenses_3',
+                            size: 16,
+                          ),
+                        ],
                       ),
                       Text(
                         'Automatically create this expense on schedule',

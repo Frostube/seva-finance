@@ -8,7 +8,7 @@ part of 'recurring_transaction.dart';
 
 class RecurringTransactionAdapter extends TypeAdapter<RecurringTransaction> {
   @override
-  final int typeId = 17;
+  final int typeId = 19;
 
   @override
   RecurringTransaction read(BinaryReader reader) {

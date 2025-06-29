@@ -4,7 +4,11 @@ import 'package:provider/provider.dart';
 import 'dashboard_screen.dart';
 import 'expenses_screen.dart';
 import 'profile_screen.dart';
+import 'insights_screen.dart';
 import '../services/onboarding_service.dart';
+import '../services/analytics_service.dart';
+import '../services/insights_service.dart';
+import '../services/insight_notification_service.dart';
 import '../widgets/onboarding_tour_overlay.dart';
 
 class MainScreen extends StatefulWidget {
@@ -23,14 +27,45 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const DashboardScreen(),
     const ExpensesScreen(),
+    const InsightsScreen(),
     const ProfileScreen(),
   ];
 
   final List<String> _navLabels = [
     'Home',
     'Budget',
+    'Insights',
     'Profile',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize AI services after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        try {
+          final analyticsService =
+              Provider.of<AnalyticsService>(context, listen: false);
+          final insightsService =
+              Provider.of<InsightsService>(context, listen: false);
+          final notificationService =
+              Provider.of<InsightNotificationService>(context, listen: false);
+
+          // Initialize services
+          analyticsService.refreshAnalytics(force: true);
+          insightsService.refreshInsights();
+          notificationService.initializeListeners();
+
+          // Check for critical alerts on app start
+          notificationService.checkAndSendCriticalAlerts();
+        } catch (e) {
+          debugPrint('Error initializing AI services: $e');
+        }
+      }
+    });
+  }
 
   void _onNavigate(int index) {
     setState(() {
@@ -86,7 +121,8 @@ class _MainScreenState extends State<MainScreen> {
                   children: [
                     _buildNavItem(0, LucideIcons.home),
                     _buildNavItem(1, LucideIcons.circleDollarSign),
-                    _buildNavItem(2, LucideIcons.userCircle),
+                    _buildNavItem(2, LucideIcons.lightbulb),
+                    _buildNavItem(3, LucideIcons.userCircle),
                   ],
                 ),
               ),

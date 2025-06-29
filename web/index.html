@@ -42,6 +42,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 
   <!-- Firebase Configuration -->
   <script>
@@ -65,8 +66,99 @@
         cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
       });
       
+      // Initialize Firebase Messaging for web push notifications
+      if (firebase.messaging.isSupported()) {
+        const messaging = firebase.messaging();
+        
+        // Handle foreground messages
+        messaging.onMessage((payload) => {
+          console.log('Message received in foreground:', payload);
+          
+          // Create a custom notification when app is in foreground
+          if (payload.notification) {
+            const notificationTitle = payload.notification.title || 'SevaFinance';
+            const notificationOptions = {
+              body: payload.notification.body,
+              icon: '/icons/Icon-192.png',
+              badge: '/icons/Icon-192.png',
+              tag: payload.data?.type || 'default',
+              data: payload.data,
+              requireInteraction: payload.data?.priority === 'high',
+              silent: false
+            };
+            
+            // Show notification
+            if (Notification.permission === 'granted') {
+              const notification = new Notification(notificationTitle, notificationOptions);
+              
+              notification.onclick = function(event) {
+                event.preventDefault();
+                const clickAction = payload.data?.click_action || '/';
+                
+                // Focus or open the app window
+                if (window.focus) {
+                  window.focus();
+                }
+                
+                // Handle click action via Flutter if available
+                if (window.flutter_app_channel) {
+                  window.flutter_app_channel.postMessage({
+                    type: 'NOTIFICATION_CLICK',
+                    clickAction: clickAction,
+                    notificationData: payload.data
+                  });
+                } else {
+                  // Fallback: navigate using URL
+                  const url = new URL(clickAction, window.location.origin);
+                  if (url.origin === window.location.origin) {
+                    window.location.href = url.href;
+                  }
+                }
+                
+                notification.close();
+              };
+            }
+          }
+        });
+        
+        console.log('Firebase Messaging initialized for web push notifications');
+      } else {
+        console.log('Firebase Messaging is not supported in this browser');
+      }
+      
     } catch (error) {
       console.error('Error initializing Firebase:', error);
+    }
+    
+    // Listen for service worker messages (notification clicks)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+          console.log('Received notification click from service worker:', event.data);
+          
+          // Handle the click action
+          const clickAction = event.data.clickAction;
+          if (clickAction) {
+            const url = new URL(clickAction, window.location.origin);
+            if (url.origin === window.location.origin) {
+              // Parse query parameters and handle navigation
+              const urlParams = new URLSearchParams(url.search);
+              
+              // Send message to Flutter app if available
+              if (window.flutter_app_channel) {
+                window.flutter_app_channel.postMessage({
+                  type: 'NAVIGATE',
+                  url: url.pathname + url.search,
+                  params: Object.fromEntries(urlParams)
+                });
+              } else {
+                // Fallback navigation
+                window.location.href = url.href;
+              }
+            }
+          }
+        }
+      });
     }
   </script>
 
@@ -118,13 +210,13 @@
         setTimeout(() => updateProgress(stage.percent, stage.message), stage.delay);
       });
 
-      // Show timeout warning after 10 seconds
+      // Show timeout warning after 15 seconds
       setTimeout(() => {
         if (!loadingComplete) {
           const warning = document.getElementById('timeout-warning');
           if (warning) warning.style.display = 'block';
         }
-      }, 10000);
+      }, 15000);
 
       // Auto-reload after 20 seconds
       setTimeout(() => {
@@ -132,7 +224,7 @@
           updateProgress(0, 'Reloading...');
           setTimeout(() => window.location.reload(), 2000);
         }
-      }, 20000);
+      }, 25000);
     });
 
     // Listen for Flutter app to be ready

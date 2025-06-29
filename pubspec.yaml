@@ -69,6 +69,7 @@ dependencies:
   firebase_crashlytics: ^3.4.3
   firebase_remote_config: ^4.2.6
   firebase_remote_config_web: ^1.4.6
+  cloud_functions: ^4.6.4
   js: ^0.6.7
   image_picker: ^1.1.2
   image_gallery_saver: ^2.0.3
@@ -118,6 +119,7 @@ flutter:
     - assets/images/ChatGPT Image 19 abr 2025, 13_33_51.png
     - assets/app_icons/
     - assets/fonts/
+    - assets/help/
 
 # App Icon Configuration
 flutter_launcher_icons:

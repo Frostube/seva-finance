@@ -7,6 +7,8 @@ import 'account_screen.dart';
 import 'preferences_screen.dart';
 import 'linked_cards_screen.dart';
 import 'onboarding_debug_screen.dart';
+import 'help_faqs_screen.dart';
+import 'debug_coach_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -226,16 +228,28 @@ class _ProfileScreenState extends State<ProfileScreen>
                             context, const PreferencesScreen()),
                       ),
                       _buildSettingsItem(
+                        icon: CupertinoIcons.question_circle_fill,
+                        title: 'Help & FAQs',
+                        onTap: () =>
+                            _navigateWithFade(context, const HelpFAQsScreen()),
+                      ),
+                      _buildSettingsItem(
                         icon: CupertinoIcons.paperplane_fill,
                         title: 'Telegram Bot',
                         onTap: () {},
                       ),
-                      // Debug option - only show in development
+                      // Debug options - only show in development
                       _buildSettingsItem(
                         icon: CupertinoIcons.wrench_fill,
                         title: 'Onboarding Debug',
                         onTap: () => _navigateWithFade(
                             context, const OnboardingDebugScreen()),
+                      ),
+                      _buildSettingsItem(
+                        icon: CupertinoIcons.lightbulb_fill,
+                        title: 'Coach Service Debug',
+                        onTap: () => _navigateWithFade(
+                            context, const DebugCoachScreen()),
                       ),
                     ],
                   ),

@@ -25,6 +25,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/category_service.dart';
 import '../services/savings_goal_service.dart';
+import '../widgets/forecast_banner.dart';
+import '../widgets/help_icon.dart';
+import '../widgets/chat_modal.dart';
+import '../services/chat_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -40,7 +44,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Wallet> _wallets = [];
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
   bool _isScreenLoading = true;
-
 
   @override
   void initState() {
@@ -99,7 +102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     }
     print(
-        'DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: \$_isScreenLoading');
+        'DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: $_isScreenLoading');
   }
 
   @override
@@ -360,10 +363,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return fullName.split(' ')[0];
   }
 
+  void _showChatModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const ChatModal(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    print(
-        'DashboardScreen: build called, _isScreenLoading: \$_isScreenLoading');
+    print('DashboardScreen: build called, _isScreenLoading: $_isScreenLoading');
     if (_isScreenLoading) {
       return const Scaffold(
         backgroundColor: Colors.white,
@@ -591,6 +600,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
 
+                    // AI Insights Forecast Banner
+                    const ForecastBanner(),
+
                     // Recent Expenses Preview
                     _buildRecentExpensesPreview(),
 
@@ -600,6 +612,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.darkGreen, AppTheme.primaryGreen],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.darkGreen.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () => _showChatModal(context),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: const Icon(
+            CupertinoIcons.chat_bubble_text_fill,
+            color: Colors.white,
+            size: 24,
+          ),
         ),
       ),
     );

@@ -70,7 +70,7 @@ class OnboardingService with ChangeNotifier {
       // If we can't determine creation time, only show for users with no onboarding data
       return _userOnboarding == null;
     } catch (e) {
-      print('Error checking if user is likely new: $e');
+      debugPrint('Error checking if user is likely new: $e');
       // Conservative fallback: only show for users with no onboarding data
       return _userOnboarding == null;
     }
@@ -95,7 +95,8 @@ class OnboardingService with ChangeNotifier {
 
         // Auto-mark existing users (who have old accounts) as having completed onboarding
         if (!_isLikelyNewUser()) {
-          print('Auto-marking existing user as having completed onboarding');
+          debugPrint(
+              'Auto-marking existing user as having completed onboarding');
           _userOnboarding!.onboardingCompleted = true;
           _userOnboarding!.onboardingCompletedAt = DateTime.now();
 
@@ -110,7 +111,7 @@ class OnboardingService with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('Error initializing onboarding: $e');
+      debugPrint('Error initializing onboarding: $e');
       _isLoading = false;
       notifyListeners();
     }
@@ -143,7 +144,7 @@ class OnboardingService with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error syncing onboarding with Firestore: $e');
+      debugPrint('Error syncing onboarding with Firestore: $e');
       // Continue with local data if sync fails
     }
   }
@@ -370,7 +371,7 @@ class OnboardingService with ChangeNotifier {
       String eventName, Map<String, dynamic> parameters) async {
     try {
       // TODO: Integrate with your analytics service (Firebase Analytics, etc.)
-      print('Analytics Event: $eventName - $parameters');
+      debugPrint('Analytics Event: $eventName - $parameters');
 
       // Store analytics events in user-specific subcollection
       if (_authService.isAuthenticated && _authService.user != null) {

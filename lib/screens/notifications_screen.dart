@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/notification_service.dart';
 import '../models/notification.dart';
+import 'insights_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -19,7 +20,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     // Mark all unread notifications as read when opening the screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final notificationService = Provider.of<NotificationService>(context, listen: false);
+      final notificationService =
+          Provider.of<NotificationService>(context, listen: false);
       for (final notification in notificationService.notifications) {
         if (!notification.isRead) {
           notificationService.markAsRead(notification.id);
@@ -28,7 +30,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
   }
 
-  Map<String, List<AppNotification>> _groupNotifications(List<AppNotification> notifications) {
+  Map<String, List<AppNotification>> _groupNotifications(
+      List<AppNotification> notifications) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
@@ -80,71 +83,92 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  void _handleNotificationTap(AppNotification notification) {
+    // Check if this is an insight-related notification
+    if (notification.relatedId != null &&
+        (notification.title.toLowerCase().contains('insight') ||
+            notification.title.toLowerCase().contains('balance') ||
+            notification.title.toLowerCase().contains('spending') ||
+            notification.title.toLowerCase().contains('budget'))) {
+      // Navigate to insights screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const InsightsScreen()),
+      );
+    }
+    // For other notifications, you could add different navigation logic here
+  }
+
   Widget _buildNotificationItem(AppNotification notification) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[200]!,
-            width: 1,
+    return GestureDetector(
+      onTap: () => _handleNotificationTap(notification),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.grey[200]!,
+              width: 1,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _getNotificationColor(notification.type).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:
+                    _getNotificationColor(notification.type).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getNotificationIcon(notification.type),
+                color: _getNotificationColor(notification.type),
+                size: 20,
+              ),
             ),
-            child: Icon(
-              _getNotificationIcon(notification.type),
-              color: _getNotificationColor(notification.type),
-              size: 20,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    notification.message,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    DateFormat('MMM d, h:mm a').format(notification.timestamp),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  notification.message,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  DateFormat('MMM d, h:mm a').format(notification.timestamp),
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[400],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNotificationSection(String title, List<AppNotification> notifications) {
+  Widget _buildNotificationSection(
+      String title, List<AppNotification> notifications) {
     if (notifications.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -161,7 +185,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
         ),
-        ...notifications.map((notification) => _buildNotificationItem(notification)),
+        ...notifications
+            .map((notification) => _buildNotificationItem(notification)),
       ],
     );
   }
@@ -186,7 +211,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: Consumer<NotificationService>(
         builder: (context, notificationService, child) {
           final notifications = notificationService.notifications;
-          
+
           if (notifications.isEmpty) {
             return Center(
               child: Column(
@@ -230,13 +255,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           return ListView(
             children: [
-              _buildNotificationSection('Today', groupedNotifications['Today']!),
-              _buildNotificationSection('This Week', groupedNotifications['This Week']!),
-              _buildNotificationSection('Earlier', groupedNotifications['Earlier']!),
+              _buildNotificationSection(
+                  'Today', groupedNotifications['Today']!),
+              _buildNotificationSection(
+                  'This Week', groupedNotifications['This Week']!),
+              _buildNotificationSection(
+                  'Earlier', groupedNotifications['Earlier']!),
             ],
           );
         },
       ),
     );
   }
-} 
+}

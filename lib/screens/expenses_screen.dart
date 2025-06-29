@@ -29,6 +29,8 @@ import 'budget_creation_screen.dart';
 import 'ocr_screen.dart'; // Added for OCR screen navigation
 import 'import_screen.dart';
 import 'export_screen.dart';
+import '../services/coach_service.dart';
+import '../widgets/coach_card.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -41,6 +43,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   late ExpenseService _expenseService;
   late WalletService _walletService;
   late CategoryService _categoryService;
+  late CoachService _coachService;
   double? _monthlyBudget;
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
 
@@ -112,6 +115,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       await _categoryService.initializationComplete;
       print('ExpensesScreen: CategoryService initialization COMPLETE');
     }
+
+    _coachService = Provider.of<CoachService>(context, listen: false);
 
     _expenseService = ExpenseService(
       Hive.box<Expense>('expenses'),
@@ -376,6 +381,44 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
     _loadMySpendingData();
     _loadSixMonthChartData();
+  }
+
+  Future<void> _dismissTip(CoachTip tip) async {
+    try {
+      await _coachService.dismissTip(tip.id);
+    } catch (e) {
+      print('Error dismissing coach tip: $e');
+    }
+  }
+
+  void _handleCoachAction(CoachTip tip) {
+    // Handle different types of coach tip actions
+    switch (tip.type) {
+      case CoachTipType.budgetAlert:
+        _showAddBudgetScreen();
+        break;
+      case CoachTipType.spendingPattern:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecentExpensesScreen(
+              expenseService: _expenseService,
+            ),
+          ),
+        );
+        break;
+      case CoachTipType.savingOpportunity:
+        _showTemplatePickerModal();
+        break;
+      default:
+        // For other types, show a generic message or do nothing
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Learn more about: ${tip.title}'),
+            backgroundColor: const Color(0xFF1B4332),
+          ),
+        );
+    }
   }
 
   String _formatCurrency(double amount) {
@@ -895,12 +938,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            // Add button
-                            IconButton(
-                              icon: const Icon(CupertinoIcons.plus_circle),
-                              color: const Color(0xFF1B4332),
-                              iconSize: 28,
-                              onPressed: _showAddOptions,
+                            // Debug and Add buttons
+                            Row(
+                              children: [
+                                // Debug button for coach tips (temporary)
+                                IconButton(
+                                  icon: const Icon(CupertinoIcons.lightbulb),
+                                  color: const Color(0xFF1B4332),
+                                  iconSize: 24,
+                                  onPressed: () async {
+                                    try {
+                                      await _coachService.forceGenerateTips();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Coach tips generated!'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      print('Error generating tips: $e');
+                                    }
+                                  },
+                                ),
+                                // Add button
+                                IconButton(
+                                  icon: const Icon(CupertinoIcons.plus_circle),
+                                  color: const Color(0xFF1B4332),
+                                  iconSize: 28,
+                                  onPressed: _showAddOptions,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1129,6 +1198,53 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               ),
                       ),
                       // END My Spending Card
+
+                      // AI Coach Tips Section
+                      Consumer<CoachService>(
+                        builder: (context, coachService, child) {
+                          // Load tips when first building, but only if not already loading
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (coachService.tips.isEmpty &&
+                                !coachService.isLoading &&
+                                mounted) {
+                              try {
+                                coachService
+                                    .forceGenerateTips(); // Use force generate for testing
+                              } catch (e) {
+                                print('Error generating coach tips: $e');
+                                // Silently fail - don't show error to user
+                              }
+                            }
+                          });
+
+                          try {
+                            final unreadTips = coachService.unreadTips;
+                            if (unreadTips.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+
+                            // Show the highest priority tip
+                            final topTip = unreadTips.first;
+
+                            return CoachCard(
+                              tip: topTip,
+                              onDismiss: () async {
+                                try {
+                                  await _dismissTip(topTip);
+                                } catch (e) {
+                                  print('Error dismissing tip: $e');
+                                }
+                              },
+                              onLearnMore: topTip.actionText != null
+                                  ? () => _handleCoachAction(topTip)
+                                  : null,
+                            );
+                          } catch (e) {
+                            print('Error in coach tips UI: $e');
+                            return const SizedBox.shrink();
+                          }
+                        },
+                      ),
 
                       // Category Budget Tracker
                       Container(

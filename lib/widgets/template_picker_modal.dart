@@ -154,10 +154,11 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
     final templateItems = templateService.getTemplateItems(template.id);
 
     // Debug: Print template items and their amounts
-    print('Template: ${template.name} (${template.id})');
-    print('Template items count: ${templateItems.length}');
+    // Debug info for template selection
+    debugPrint('Template: ${template.name} (${template.id})');
+    debugPrint('Template items count: ${templateItems.length}');
     for (final item in templateItems) {
-      print('  - ${item.categoryId}: \$${item.defaultAmount}');
+      debugPrint('  - ${item.categoryId}: \$${item.defaultAmount}');
     }
 
     return GestureDetector(

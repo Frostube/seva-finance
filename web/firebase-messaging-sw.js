@@ -18,11 +18,74 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function(payload) {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || 'SevaFinance';
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/icons/Icon-192.png'
+    body: payload.notification?.body || 'You have a new notification',
+    icon: '/icons/Icon-192.png',
+    badge: '/icons/Icon-192.png',
+    tag: payload.data?.type || 'default',
+    data: {
+      click_action: payload.data?.click_action || '/',
+      type: payload.data?.type,
+      relatedId: payload.data?.relatedId
+    },
+    actions: [
+      {
+        action: 'view',
+        title: 'View',
+        icon: '/icons/Icon-192.png'
+      },
+      {
+        action: 'dismiss',
+        title: 'Dismiss'
+      }
+    ],
+    requireInteraction: payload.data?.priority === 'high',
+    silent: false,
+    renotify: true,
+    timestamp: Date.now()
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  return self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', function(event) {
+  console.log('[firebase-messaging-sw.js] Notification click received.');
+
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  // Get the click action URL from the notification data
+  const clickAction = event.notification.data?.click_action || '/';
+  
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }).then(function(clientList) {
+      // Try to focus existing window first
+      for (const client of clientList) {
+        if (client.url.includes('seva-finance-app') && 'focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'NOTIFICATION_CLICK',
+            clickAction: clickAction,
+            notificationData: event.notification.data
+          });
+          return;
+        }
+      }
+      
+      // Open new window if no existing window found
+      if (clients.openWindow) {
+        const baseUrl = self.registration.scope;
+        const targetUrl = new URL(clickAction, baseUrl).href;
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
 }); 

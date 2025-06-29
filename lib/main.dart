@@ -40,6 +40,15 @@ import 'services/recurring_transaction_service.dart';
 import 'models/ocr_settings.dart';
 import 'models/user_onboarding.dart';
 import 'models/category_budget.dart';
+import 'models/analytics.dart';
+import 'models/insight.dart';
+import 'services/analytics_service.dart';
+import 'services/insights_service.dart';
+import 'services/insight_notification_service.dart';
+import 'services/push_notification_service.dart';
+import 'services/help_service.dart';
+import 'services/chat_service.dart';
+import 'services/coach_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,35 +67,74 @@ void main() async {
   await Hive.initFlutter();
 
   // Register adapters with duplicate protection
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(WalletAdapter());
-  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(ExpenseAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(SavingsGoalAdapter());
-  if (!Hive.isAdapterRegistered(4))
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(WalletAdapter());
+  }
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(ExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(3)) {
+    Hive.registerAdapter(SavingsGoalAdapter());
+  }
+  if (!Hive.isAdapterRegistered(4)) {
     Hive.registerAdapter(SpendingAlertAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(AlertTypeAdapter());
-  if (!Hive.isAdapterRegistered(7))
+  }
+  if (!Hive.isAdapterRegistered(5)) {
+    Hive.registerAdapter(AlertTypeAdapter());
+  }
+  if (!Hive.isAdapterRegistered(7)) {
     Hive.registerAdapter(AppNotificationAdapter());
-  if (!Hive.isAdapterRegistered(6))
+  }
+  if (!Hive.isAdapterRegistered(6)) {
     Hive.registerAdapter(NotificationTypeAdapter());
-  if (!Hive.isAdapterRegistered(2))
+  }
+  if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(ExpenseCategoryAdapter());
-  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(OcrSettingsAdapter());
-  if (!Hive.isAdapterRegistered(8)) Hive.registerAdapter(OcrModeAdapter());
-  if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(DateFallbackAdapter());
-  if (!Hive.isAdapterRegistered(11))
+  }
+  if (!Hive.isAdapterRegistered(10)) {
+    Hive.registerAdapter(OcrSettingsAdapter());
+  }
+  if (!Hive.isAdapterRegistered(8)) {
+    Hive.registerAdapter(OcrModeAdapter());
+  }
+  if (!Hive.isAdapterRegistered(9)) {
+    Hive.registerAdapter(DateFallbackAdapter());
+  }
+  if (!Hive.isAdapterRegistered(11)) {
     Hive.registerAdapter(UserOnboardingAdapter());
-  if (!Hive.isAdapterRegistered(12))
+  }
+  if (!Hive.isAdapterRegistered(12)) {
     Hive.registerAdapter(BudgetTemplateAdapter());
-  if (!Hive.isAdapterRegistered(13))
+  }
+  if (!Hive.isAdapterRegistered(13)) {
     Hive.registerAdapter(TemplateItemAdapter());
-  if (!Hive.isAdapterRegistered(14))
+  }
+  if (!Hive.isAdapterRegistered(14)) {
     Hive.registerAdapter(CategoryBudgetAdapter());
-  if (!Hive.isAdapterRegistered(15))
+  }
+  if (!Hive.isAdapterRegistered(15)) {
     Hive.registerAdapter(BudgetStatusAdapter());
-  if (!Hive.isAdapterRegistered(16))
+  }
+  if (!Hive.isAdapterRegistered(16)) {
     Hive.registerAdapter(BudgetTimelineAdapter());
-  if (!Hive.isAdapterRegistered(17))
+  }
+  if (!Hive.isAdapterRegistered(19)) {
     Hive.registerAdapter(RecurringTransactionAdapter());
+  }
+
+  // Register new AI Insights adapters
+  if (!Hive.isAdapterRegistered(20)) {
+    Hive.registerAdapter(AnalyticsAdapter());
+  }
+  if (!Hive.isAdapterRegistered(21)) {
+    Hive.registerAdapter(InsightAdapter());
+  }
+  if (!Hive.isAdapterRegistered(22)) {
+    Hive.registerAdapter(InsightTypeAdapter());
+  }
+  if (!Hive.isAdapterRegistered(23)) {
+    Hive.registerAdapter(InsightPriorityAdapter());
+  }
 
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
@@ -101,6 +149,14 @@ void main() async {
   await Hive.openBox<TemplateItem>('template_items');
   await Hive.openBox<CategoryBudget>('category_budgets');
   await Hive.openBox<RecurringTransaction>('recurring_transactions');
+
+  // Open AI Insights boxes
+  await Hive.openBox<Analytics>('analytics');
+  await Hive.openBox<Insight>('insights');
+
+  // Initialize help content
+  final helpService = HelpService();
+  await helpService.loadHelpContent();
 
   runApp(const MyApp());
 }
@@ -169,6 +225,13 @@ class MyApp extends StatelessWidget {
             Hive.box<AppNotification>('notifications'),
             Provider.of<FirebaseFirestore>(context, listen: false),
             Provider.of<FirebaseMessaging>(context, listen: false),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => PushNotificationService(
+            Provider.of<FirebaseMessaging>(context, listen: false),
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseAuth>(context, listen: false),
           ),
         ),
         ChangeNotifierProvider(
@@ -245,6 +308,54 @@ class MyApp extends StatelessWidget {
         ),
         Provider<RecurringTransactionService>(
           create: (context) => RecurringTransactionService(),
+        ),
+
+        // AI Insights Services
+        ChangeNotifierProvider<AnalyticsService>(
+          create: (context) => AnalyticsService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Provider.of<ExpenseService>(context, listen: false),
+            Provider.of<WalletService>(context, listen: false),
+            Hive.box<Analytics>('analytics'),
+          ),
+        ),
+        ChangeNotifierProvider<InsightsService>(
+          create: (context) => InsightsService(
+            Provider.of<AnalyticsService>(context, listen: false),
+            Provider.of<ExpenseService>(context, listen: false),
+            Provider.of<CategoryBudgetService>(context, listen: false),
+          ),
+        ),
+
+        // Notification Service for Insights
+        Provider<InsightNotificationService>(
+          create: (context) => InsightNotificationService(
+            Provider.of<InsightsService>(context, listen: false),
+            Provider.of<NotificationService>(context, listen: false),
+            Provider.of<FirebaseMessaging>(context, listen: false),
+          ),
+        ),
+
+        // Chat Service
+        ChangeNotifierProvider<ChatService>(
+          create: (context) => ChatService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Provider.of<AnalyticsService>(context, listen: false),
+            Provider.of<ExpenseService>(context, listen: false),
+          ),
+        ),
+
+        // Coach Service
+        ChangeNotifierProvider<CoachService>(
+          create: (context) => CoachService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Provider.of<AnalyticsService>(context, listen: false),
+            Provider.of<ExpenseService>(context, listen: false),
+            Provider.of<CategoryBudgetService>(context, listen: false),
+          ),
         ),
       ],
       child: MaterialApp(
