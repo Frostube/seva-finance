@@ -20,10 +20,11 @@ class ReviewReceiptScreen extends StatefulWidget {
   final String merchantName;
   final DateTime transactionDate;
   final TimeOfDay transactionTime;
-  final List<Map<String, String>> lineItems; // e.g., [{'item': 'Coffee', 'price': '2.50'}]
+  final List<Map<String, String>>
+      lineItems; // e.g., [{'item': 'Coffee', 'price': '2.50'}]
   final String totalAmount;
   final String? changeAmount;
-  final List<Map<String, String>> ocrResults; 
+  final List<Map<String, String>> ocrResults;
 
   const ReviewReceiptScreen({
     super.key,
@@ -38,7 +39,7 @@ class ReviewReceiptScreen extends StatefulWidget {
     ], // Mock
     this.totalAmount = '36', // Mock
     this.changeAmount = '14', // Mock
-    required this.ocrResults, 
+    required this.ocrResults,
   });
 
   @override
@@ -52,7 +53,8 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
   late TextEditingController _totalAmountController;
   final List<TextEditingController> _itemControllers = [];
   final List<TextEditingController> _priceControllers = [];
-  late String _selectedCategoryName = 'Other'; // Stores the NAME of the selected category
+  late String _selectedCategoryName =
+      'Other'; // Stores the NAME of the selected category
   late CategoryService _categoryService;
   List<String> _categoryDisplayNames = []; // For Dropdown
   bool _isLoadingCategories = true;
@@ -64,10 +66,12 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
   void initState() {
     super.initState();
     _categoryService = Provider.of<CategoryService>(context, listen: false);
-    
-    _storeNameController = TextEditingController(text: _extractOcrField('Store Name'));
+
+    _storeNameController =
+        TextEditingController(text: _extractOcrField('Store Name'));
     _dateController = TextEditingController(text: _extractOcrField('Date'));
-    _totalAmountController = TextEditingController(text: _extractOcrField('Total Amount'));
+    _totalAmountController =
+        TextEditingController(text: _extractOcrField('Total Amount'));
 
     _populateItemAndPriceControllers();
     _loadCategoriesAndInitSelection();
@@ -78,14 +82,15 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
       return widget.ocrResults.firstWhere((e) => e['label'] == label)['value'];
     } catch (e) {
       if (throwIfNotFound) {
-        debugPrint("ReviewReceiptScreen: OCR field '$label' not found in ocrResults.");
+        debugPrint(
+            "ReviewReceiptScreen: OCR field '$label' not found in ocrResults.");
       }
       return null; // Return null if not found
     }
   }
 
   void _populateItemAndPriceControllers() {
-    for (int i = 0; ; i++) {
+    for (int i = 0;; i++) {
       final itemLabel = 'Item ${i + 1}';
       final priceLabel = 'Price ${i + 1}';
       final itemValue = _extractOcrField(itemLabel, throwIfNotFound: false);
@@ -95,35 +100,42 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
         _itemControllers.add(TextEditingController(text: itemValue));
         _priceControllers.add(TextEditingController(text: priceValue ?? ''));
       } else {
-        break; 
+        break;
       }
     }
   }
 
   Future<void> _loadCategoriesAndInitSelection() async {
-    setState(() { _isLoadingCategories = true; });
+    setState(() {
+      _isLoadingCategories = true;
+    });
     // Ensure CategoryService is initialized
     if (_categoryService.initializationComplete != null) {
       await _categoryService.initializationComplete;
     }
     if (!mounted) return;
 
-    final activeCategories = _categoryService.categories.where((cat) => cat.id != CategoryService.uncategorizedId || cat.name == CategoryService.uncategorizedName).toList();
-    
+    final activeCategories = _categoryService.categories
+        .where((cat) =>
+            cat.id != CategoryService.uncategorizedId ||
+            cat.name == CategoryService.uncategorizedName)
+        .toList();
+
     setState(() {
       _categoryDisplayNames = activeCategories.map((c) => c.name).toList();
       if (_categoryDisplayNames.isNotEmpty) {
         // Try to select 'Other' if available, else the first category
         if (_categoryDisplayNames.contains('Other')) {
           _selectedCategoryName = 'Other';
-        } else if (_categoryDisplayNames.contains(CategoryService.uncategorizedName)){
-           _selectedCategoryName = CategoryService.uncategorizedName;
+        } else if (_categoryDisplayNames
+            .contains(CategoryService.uncategorizedName)) {
+          _selectedCategoryName = CategoryService.uncategorizedName;
         } else {
           _selectedCategoryName = _categoryDisplayNames.first;
         }
       } else {
         // Fallback if no categories exist (should ideally not happen if Uncategorized is always there)
-        _selectedCategoryName = CategoryService.uncategorizedName; 
+        _selectedCategoryName = CategoryService.uncategorizedName;
         _categoryDisplayNames.add(CategoryService.uncategorizedName);
       }
       _isLoadingCategories = false;
@@ -147,56 +159,70 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
   Future<void> _saveExpense() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      final totalAmount = double.tryParse(_totalAmountController.text.replaceAll('\$', '')) ?? 0.0;
-      
+      final totalAmount =
+          double.tryParse(_totalAmountController.text.replaceAll('\$', '')) ??
+              0.0;
+
       DateTime parsedDate;
       try {
         parsedDate = DateFormat('yyyy-MM-dd').parseStrict(_dateController.text);
       } catch (e) {
         try {
-          parsedDate = DateFormat('MM/dd/yyyy').parseStrict(_dateController.text);
+          parsedDate =
+              DateFormat('MM/dd/yyyy').parseStrict(_dateController.text);
         } catch (f) {
           try {
-            parsedDate = DateFormat('dd.MM.yyyy').parseStrict(_dateController.text);
+            parsedDate =
+                DateFormat('dd.MM.yyyy').parseStrict(_dateController.text);
           } catch (g) {
             try {
-               parsedDate = DateFormat('dd-MM-yyyy').parseStrict(_dateController.text);
+              parsedDate =
+                  DateFormat('dd-MM-yyyy').parseStrict(_dateController.text);
             } catch (h) {
-                debugPrint("ReviewReceiptScreen: Could not parse date: ${_dateController.text}. Defaulting to now.");
-                parsedDate = DateTime.now();
+              debugPrint(
+                  "ReviewReceiptScreen: Could not parse date: ${_dateController.text}. Defaulting to now.");
+              parsedDate = DateTime.now();
             }
           }
         }
       }
 
-      String categoryIdToSave = CategoryService.uncategorizedId; // Default to uncategorized
+      String categoryIdToSave =
+          CategoryService.uncategorizedId; // Default to uncategorized
       try {
-        final foundCategory = _categoryService.categories.firstWhere((cat) => cat.name == _selectedCategoryName);
+        final foundCategory = _categoryService.categories
+            .firstWhere((cat) => cat.name == _selectedCategoryName);
         categoryIdToSave = foundCategory.id;
       } catch (e) {
-        debugPrint("ReviewReceiptScreen: Selected category name '$_selectedCategoryName' not found, saving as Uncategorized. Error: $e");
+        debugPrint(
+            "ReviewReceiptScreen: Selected category name '$_selectedCategoryName' not found, saving as Uncategorized. Error: $e");
         // Ensure Uncategorized category exists and get its ID, just in case
-        final uncategorized = await _categoryService.getOrCreateUncategorizedCategory();
+        final uncategorized =
+            await _categoryService.getOrCreateUncategorizedCategory();
         categoryIdToSave = uncategorized.id;
       }
 
       final newExpense = Expense(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         amount: totalAmount,
-        categoryId: categoryIdToSave, 
+        categoryId: categoryIdToSave,
         date: parsedDate,
         note: "Scanned: ${_storeNameController.text}",
       );
 
-      final expenseService = Provider.of<ExpenseService>(context, listen: false);
+      final expenseService =
+          Provider.of<ExpenseService>(context, listen: false);
       await expenseService.addExpense(newExpense);
 
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Expense saved from receipt!', style: GoogleFonts.inter())),
+          SnackBar(
+              content: Text('Expense saved from receipt!',
+                  style: GoogleFonts.inter())),
         );
-        Navigator.of(context).pop(); 
-        Navigator.of(context).pop();
+        // Return true to indicate data was saved and needs refresh
+        Navigator.of(context).pop(true); // OCR Screen
+        Navigator.of(context).pop(true); // Expenses Screen
       }
     }
   }
@@ -207,28 +233,39 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
 
     if (photosStatus.isGranted || storageStatus.isGranted) {
       try {
-        final result = await ImageGallerySaver.saveFile(widget.imagePath, name: "receipt_${DateTime.now().millisecondsSinceEpoch}");
+        final result = await ImageGallerySaver.saveFile(widget.imagePath,
+            name: "receipt_${DateTime.now().millisecondsSinceEpoch}");
         if (!mounted) return;
         if (result['isSuccess']) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image saved to gallery!', style: GoogleFonts.inter())),
+            SnackBar(
+                content: Text('Image saved to gallery!',
+                    style: GoogleFonts.inter())),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save image: ${result['errorMessage'] ?? 'Unknown error'}', style: GoogleFonts.inter())),
+            SnackBar(
+                content: Text(
+                    'Failed to save image: ${result['errorMessage'] ?? 'Unknown error'}',
+                    style: GoogleFonts.inter())),
           );
         }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving image: $e', style: GoogleFonts.inter())),
+          SnackBar(
+              content:
+                  Text('Error saving image: $e', style: GoogleFonts.inter())),
         );
       }
-    } else if (photosStatus.isPermanentlyDenied || storageStatus.isPermanentlyDenied) {
+    } else if (photosStatus.isPermanentlyDenied ||
+        storageStatus.isPermanentlyDenied) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Photo/Storage permission permanently denied. Please enable it in app settings.', style: GoogleFonts.inter()),
+          content: Text(
+              'Photo/Storage permission permanently denied. Please enable it in app settings.',
+              style: GoogleFonts.inter()),
           action: SnackBarAction(
             label: 'Settings',
             onPressed: () => openAppSettings(),
@@ -238,7 +275,9 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Photo/Storage permission denied.', style: GoogleFonts.inter())),
+        SnackBar(
+            content: Text('Photo/Storage permission denied.',
+                style: GoogleFonts.inter())),
       );
     }
   }
@@ -256,7 +295,8 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
         ),
         title: Text(
           'Review Receipt',
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+          style: GoogleFonts.inter(
+              fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
         ),
         actions: [
           IconButton(
@@ -264,12 +304,14 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const OcrSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const OcrSettingsScreen()),
               );
             },
           ),
           IconButton(
-            icon: const Icon(CupertinoIcons.download_circle, color: Colors.black87),
+            icon: const Icon(CupertinoIcons.download_circle,
+                color: Colors.black87),
             onPressed: _downloadImage,
           ),
         ],
@@ -283,79 +325,85 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
             children: <Widget>[
               Text(
                 'Verify Extracted Information',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700]),
               ),
               const SizedBox(height: 16),
               Center(
-                child: Image.file(
-                  File(widget.imagePath),
-                  height: 200,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    debugPrint("ReviewReceiptScreen: Error loading image for preview: $error");
-                    return Container(
-                      height: 200,
-                      width: double.infinity,
-                      color: Colors.grey[200],
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(CupertinoIcons.photo_fill_on_rectangle_fill, size: 50, color: Colors.grey),
-                          const SizedBox(height: 8),
-                          Text("Error loading image", style: GoogleFonts.inter(color: Colors.grey[700])),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                child: _buildFilePreview(),
               ),
               const SizedBox(height: 20),
-              _buildTextField(_storeNameController, 'Store Name', CupertinoIcons.building_2_fill),
-              _buildTextField(_dateController, 'Date (YYYY-MM-DD)', CupertinoIcons.calendar, keyboardType: TextInputType.datetime),
-              _buildTextField(_totalAmountController, 'Total Amount', CupertinoIcons.money_dollar_circle_fill, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+              _buildTextField(_storeNameController, 'Store Name',
+                  CupertinoIcons.building_2_fill),
+              _buildTextField(
+                  _dateController, 'Date (YYYY-MM-DD)', CupertinoIcons.calendar,
+                  keyboardType: TextInputType.datetime),
+              _buildTextField(_totalAmountController, 'Total Amount',
+                  CupertinoIcons.money_dollar_circle_fill,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true)),
               const SizedBox(height: 16),
               Text(
                 'Assign Category',
-                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700]),
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(color: Colors.grey[300]!)
-                ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8.0),
+                    border: Border.all(color: Colors.grey[300]!)),
                 child: _isLoadingCategories
-                  ? const Center(child: CupertinoActivityIndicator(radius: 10))
-                  : DropdownButtonFormField<String>(
-                      value: _categoryDisplayNames.contains(_selectedCategoryName) ? _selectedCategoryName : (_categoryDisplayNames.isNotEmpty ? _categoryDisplayNames.first : null),
-                      items: _categoryDisplayNames.map((String categoryName) {
-                        return DropdownMenuItem<String>(
-                          value: categoryName,
-                          child: Text(categoryName, style: GoogleFonts.inter()),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedCategoryName = newValue;
-                          });
-                        }
-                      },
-                      decoration: const InputDecoration(
+                    ? const Center(
+                        child: CupertinoActivityIndicator(radius: 10))
+                    : DropdownButtonFormField<String>(
+                        value: _categoryDisplayNames
+                                .contains(_selectedCategoryName)
+                            ? _selectedCategoryName
+                            : (_categoryDisplayNames.isNotEmpty
+                                ? _categoryDisplayNames.first
+                                : null),
+                        items: _categoryDisplayNames.map((String categoryName) {
+                          return DropdownMenuItem<String>(
+                            value: categoryName,
+                            child:
+                                Text(categoryName, style: GoogleFonts.inter()),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedCategoryName = newValue;
+                            });
+                          }
+                        },
+                        decoration: const InputDecoration(
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Please select a category'
+                            : null,
+                        hint: _categoryDisplayNames.isEmpty
+                            ? Text("No categories", style: GoogleFonts.inter())
+                            : null,
                       ),
-                      validator: (value) => value == null || value.isEmpty ? 'Please select a category' : null,
-                      hint: _categoryDisplayNames.isEmpty ? Text("No categories", style: GoogleFonts.inter()) : null,
-                    ),
               ),
               const SizedBox(height: 20),
               if (_itemControllers.isNotEmpty)
                 Text(
                   'Items (Read-only)',
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                  style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700]),
                 ),
               if (_itemControllers.isNotEmpty) const SizedBox(height: 8),
               ListView.builder(
@@ -369,12 +417,20 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
                       children: [
                         Expanded(
                           flex: 3,
-                          child: _buildTextField(_itemControllers[index], 'Item ${index + 1}', CupertinoIcons.tag_fill, readOnly: true, dense: true),
+                          child: _buildTextField(_itemControllers[index],
+                              'Item ${index + 1}', CupertinoIcons.tag_fill,
+                              readOnly: true, dense: true),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
-                          child: _buildTextField(_priceControllers[index], 'Price', CupertinoIcons.money_dollar, readOnly: true, dense: true, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                          child: _buildTextField(_priceControllers[index],
+                              'Price', CupertinoIcons.money_dollar,
+                              readOnly: true,
+                              dense: true,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true)),
                         ),
                       ],
                     ),
@@ -387,10 +443,16 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, MediaQuery.of(context).padding.bottom + 16.0),
+        padding: EdgeInsets.fromLTRB(
+            16.0, 16.0, 16.0, MediaQuery.of(context).padding.bottom + 16.0),
         child: ElevatedButton.icon(
-          icon: const Icon(CupertinoIcons.check_mark_circled_solid, color: Colors.white),
-          label: Text('Save Expense', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+          icon: const Icon(CupertinoIcons.check_mark_circled_solid,
+              color: Colors.white),
+          label: Text('Save Expense',
+              style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
           onPressed: _saveExpense,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1B4332),
@@ -404,44 +466,122 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType, bool readOnly = false, bool dense = false}) {
+  Widget _buildFilePreview() {
+    final String filePath = widget.imagePath;
+    final bool isPdf = filePath.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      // Show PDF icon and info for PDF files
+      return Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE9F1EC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF1B4332).withOpacity(0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.doc_text_fill,
+              size: 60,
+              color: const Color(0xFF1B4332),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'PDF Receipt',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1B4332),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Text has been extracted and processed',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Show image preview for image files
+      return Image.file(
+        File(filePath),
+        height: 200,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint(
+              "ReviewReceiptScreen: Error loading image for preview: $error");
+          return Container(
+            height: 200,
+            width: double.infinity,
+            color: Colors.grey[200],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(CupertinoIcons.photo_fill_on_rectangle_fill,
+                    size: 50, color: Colors.grey),
+                const SizedBox(height: 8),
+                Text("Error loading image",
+                    style: GoogleFonts.inter(color: Colors.grey[700])),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Widget _buildTextField(
+      TextEditingController controller, String label, IconData icon,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      bool dense = false}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: dense ? 4.0 : 8.0),
       child: TextFormField(
         controller: controller,
         readOnly: readOnly,
-        style: GoogleFonts.inter(color: readOnly ? Colors.grey[700] : Colors.black),
+        style: GoogleFonts.inter(
+            color: readOnly ? Colors.grey[700] : Colors.black),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.inter(color: Colors.grey[600]),
           prefixIcon: Icon(icon, color: const Color(0xFF1B4332), size: 20),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: BorderSide(color: Colors.grey[300]!)
-          ),
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: Colors.grey[300]!)),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: BorderSide(color: Colors.grey[300]!)
-          ),
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: Colors.grey[300]!)),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(color: Color(0xFF1B4332))
-          ),
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: const BorderSide(color: Color(0xFF1B4332))),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(vertical: dense ? 12.0 : 16.0, horizontal: 12.0),
+          contentPadding: EdgeInsets.symmetric(
+              vertical: dense ? 12.0 : 16.0, horizontal: 12.0),
         ),
         keyboardType: keyboardType,
         validator: (value) {
           final cleanValue = value?.trim() ?? '';
           if (!readOnly && cleanValue.isEmpty) {
-            if (label == 'Store Name' || label.startsWith('Date') || label == 'Total Amount') {
-               return 'Please enter $label';
+            if (label == 'Store Name' ||
+                label.startsWith('Date') ||
+                label == 'Total Amount') {
+              return 'Please enter $label';
             }
           }
           if (label == 'Total Amount') {
-             final numVal = double.tryParse(cleanValue.replaceAll('\$', ''));
-             if (numVal == null || numVal <= 0) return 'Please enter a valid amount';
+            final numVal = double.tryParse(cleanValue.replaceAll('\$', ''));
+            if (numVal == null || numVal <= 0)
+              return 'Please enter a valid amount';
           }
           return null;
         },
@@ -455,4 +595,4 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
 //   imagePath: '', // a placeholder path
 //   transactionDate: DateTime(2019, 7, 1),
 //   transactionTime: TimeOfDay(hour: 10, minute: 12),
-// ))); 
+// )));

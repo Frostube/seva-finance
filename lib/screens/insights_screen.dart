@@ -360,6 +360,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                 if (forecastedBalance == 0) return const SizedBox();
 
                 return FloatingActionButton.extended(
+                  heroTag: "insights_forecast_fab",
                   onPressed: () => _showForecastDialog(forecastedBalance),
                   backgroundColor: const Color(0xFF1B4332),
                   icon: const Icon(CupertinoIcons.graph_circle,

@@ -133,7 +133,16 @@ class WalletService with ChangeNotifier {
   }
 
   List<Wallet> getAllWallets() {
-    return List.from(_wallets);
+    // Sort wallets so primary wallet always appears first
+    final sortedWallets = List<Wallet>.from(_wallets);
+    sortedWallets.sort((a, b) {
+      // Primary wallet comes first
+      if (a.isPrimary && !b.isPrimary) return -1;
+      if (!a.isPrimary && b.isPrimary) return 1;
+      // For non-primary wallets, maintain current order (by creation date)
+      return a.createdAt.compareTo(b.createdAt);
+    });
+    return sortedWallets;
   }
 
   // Public method to force reload wallets (useful after login)

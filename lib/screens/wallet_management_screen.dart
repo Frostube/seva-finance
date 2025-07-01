@@ -16,7 +16,7 @@ class WalletManagementScreen extends StatelessWidget {
       body: Consumer<WalletService>(
         builder: (context, walletService, child) {
           final wallets = walletService.wallets;
-          
+
           if (wallets.isEmpty) {
             return const Center(
               child:
@@ -85,6 +85,7 @@ class WalletManagementScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "wallet_management_add_fab",
         onPressed: () {
           // Create a new empty wallet for the edit screen
           final newWallet = Wallet(
@@ -113,4 +114,4 @@ class WalletManagementScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

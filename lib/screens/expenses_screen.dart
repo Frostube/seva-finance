@@ -1690,12 +1690,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
         child: FloatingActionButton.extended(
           heroTag: 'scan_receipt',
-          onPressed: () {
-            // Navigate to OcrScreen
-            Navigator.push(
+          onPressed: () async {
+            // Navigate to OcrScreen and handle result
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const OcrScreen()),
             );
+            // If expense was saved, refresh the screen
+            if (result == true) {
+              _refreshScreen();
+            }
           },
           backgroundColor: Colors.transparent,
           elevation: 0,

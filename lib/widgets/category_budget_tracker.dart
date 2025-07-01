@@ -29,7 +29,8 @@ class CategoryBudgetTracker extends StatefulWidget {
   State<CategoryBudgetTracker> createState() => _CategoryBudgetTrackerState();
 }
 
-class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
+class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker>
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false; // Collapsed by default
 
   @override
@@ -38,7 +39,9 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
       builder: (context, categoryBudgetService, child) {
         return FutureBuilder<Map<String, dynamic>>(
           future: categoryBudgetService.getCategoryBudgetOverview(
-              widget.walletId, widget.month),
+            widget.walletId,
+            widget.month,
+          ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const CenterLoadingWidget();
@@ -76,11 +79,7 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
       ),
       child: Column(
         children: [
-          Icon(
-            CupertinoIcons.chart_pie,
-            size: 48,
-            color: Colors.grey[400],
-          ),
+          Icon(CupertinoIcons.chart_pie, size: 48, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No Category Budgets Set',
@@ -93,10 +92,7 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
           const SizedBox(height: 8),
           Text(
             'Create a budget from a template to track spending by category',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -104,10 +100,7 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
           GestureDetector(
             onTap: widget.onChooseTemplate,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B4332),
                 borderRadius: BorderRadius.circular(12),
@@ -147,8 +140,10 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
 
     return GestureDetector(
       onTap: () {
+        print('Budget Overview tapped! Current expanded state: $_isExpanded');
         setState(() {
           _isExpanded = !_isExpanded;
+          print('Budget Overview expanded state changed to: $_isExpanded');
         });
       },
       child: AnimatedContainer(
@@ -157,10 +152,7 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              const Color(0xFF1B4332),
-              const Color(0xFF2D5A3D),
-            ],
+            colors: [const Color(0xFF1B4332), const Color(0xFF2D5A3D)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -259,12 +251,15 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                     if (categoriesOverBudget > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.red.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.red.withOpacity(0.3),
+                          ),
                         ),
                         child: Text(
                           '$categoriesOverBudget over budget',
@@ -361,8 +356,10 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        NumberFormat.currency(symbol: '\$', decimalDigits: 0)
-                            .format(totalSpent),
+                        NumberFormat.currency(
+                          symbol: '\$',
+                          decimalDigits: 0,
+                        ).format(totalSpent),
                         style: GoogleFonts.inter(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
@@ -385,8 +382,10 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        NumberFormat.currency(symbol: '\$', decimalDigits: 0)
-                            .format(totalBudget),
+                        NumberFormat.currency(
+                          symbol: '\$',
+                          decimalDigits: 0,
+                        ).format(totalBudget),
                         style: GoogleFonts.inter(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
@@ -444,45 +443,67 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                         ),
                       ),
                     const SizedBox(width: 8),
-                    Icon(
-                      _isExpanded
-                          ? CupertinoIcons.chevron_up
-                          : CupertinoIcons.chevron_down,
-                      color: Colors.white.withOpacity(0.7),
-                      size: 16,
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeInOut,
+                      child: Icon(
+                        CupertinoIcons.chevron_down,
+                        color: Colors.white.withOpacity(0.7),
+                        size: 16,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
-            // Show detailed breakdown only when expanded
-            if (_isExpanded) ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Category Breakdown',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+            // Show detailed breakdown with smooth animation
+            AnimatedSize(
+              duration: const Duration(
+                milliseconds: 600,
+              ), // Longer duration to be more noticeable
+              curve: Curves.elasticOut, // More dramatic curve
+              child: _isExpanded
+                  ? AnimatedOpacity(
+                      opacity: _isExpanded ? 1.0 : 0.0,
+                      duration: const Duration(
+                        milliseconds: 500,
+                      ), // Longer fade
+                      curve: Curves.easeInOut,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Category Breakdown',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _buildCompactCategoryList(
+                                  overview['budgetDetails']
+                                      as List<Map<String, dynamic>>,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildCompactCategoryList(overview['budgetDetails']
-                        as List<Map<String, dynamic>>),
-                  ],
-                ),
-              ),
-            ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
@@ -506,10 +527,7 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
           ),
           child: Row(
             children: [
@@ -527,7 +545,8 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                     child: Center(
                       child: Icon(
                         IconUtils.getIconFromName(
-                            category?.icon ?? 'money_dollar_circle'),
+                          category?.icon ?? 'money_dollar_circle',
+                        ),
                         color: Colors.white,
                         size: 16,
                       ),
@@ -561,8 +580,9 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: _getCompactStatusColor(status)
-                                    .withOpacity(0.3),
+                                color: _getCompactStatusColor(
+                                  status,
+                                ).withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -618,8 +638,9 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
                             borderRadius: BorderRadius.circular(3),
                             boxShadow: [
                               BoxShadow(
-                                color: _getCompactStatusColor(status)
-                                    .withOpacity(0.5),
+                                color: _getCompactStatusColor(
+                                  status,
+                                ).withOpacity(0.5),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
                               ),
@@ -662,22 +683,14 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Clear Budget Template',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         content: Text(
           'This will remove all category budgets for this month. You can create a new budget from scratch or apply a different template.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.grey[700],
-          ),
+          style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
         ),
         actions: [
           TextButton(
@@ -719,12 +732,16 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
 
   Future<void> _clearCurrentTemplate(BuildContext context) async {
     try {
-      final categoryBudgetService =
-          Provider.of<CategoryBudgetService>(context, listen: false);
+      final categoryBudgetService = Provider.of<CategoryBudgetService>(
+        context,
+        listen: false,
+      );
 
       // Clear all category budgets for this wallet and month
       await categoryBudgetService.clearCategoryBudgetsForMonth(
-          widget.walletId, widget.month);
+        widget.walletId,
+        widget.month,
+      );
 
       // Show success message
       if (context.mounted) {
@@ -767,4 +784,3 @@ class _CategoryBudgetTrackerState extends State<CategoryBudgetTracker> {
     }
   }
 }
- 

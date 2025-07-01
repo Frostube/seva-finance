@@ -633,6 +633,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         child: FloatingActionButton(
+          heroTag: "dashboard_chat_fab",
           onPressed: () => _showChatModal(context),
           backgroundColor: Colors.transparent,
           elevation: 0,

@@ -294,6 +294,8 @@ class ExpenseService with ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
+      // Force complete refresh to ensure all data is consistent
+      await _forceRefreshAllData();
       notifyListeners();
     }
   }
@@ -674,6 +676,16 @@ class ExpenseService with ChangeNotifier {
         message:
             'You just spent \$${expense.amount.toStringAsFixed(0)} on ${_categoryService.getCategoryNameById(expense.categoryId, defaultName: 'Unknown Category')}',
       );
+    }
+  }
+
+  /// Force refresh all expense data to ensure consistency across all screens
+  Future<void> _forceRefreshAllData() async {
+    try {
+      await _loadExpenses(); // Reload from Firestore
+      debugPrint('ExpenseService: Force refreshed all data for consistency');
+    } catch (e) {
+      debugPrint('ExpenseService: Error during force refresh: $e');
     }
   }
 }
