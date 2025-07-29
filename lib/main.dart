@@ -55,6 +55,8 @@ import 'services/feature_gate_service.dart';
 import 'services/subscription_service.dart';
 import 'models/user.dart' as app_user;
 import 'models/feature_flag.dart';
+import 'theme/theme_provider.dart';
+import 'services/feature_flag_service.dart';
 
 // Helper function to safely register Hive adapters
 void _registerAdapterSafe<T>(
@@ -164,6 +166,8 @@ void main() async {
   await Hive.openBox<TemplateItem>('template_items');
   await Hive.openBox<CategoryBudget>('category_budgets');
   await Hive.openBox<RecurringTransaction>('recurring_transactions');
+  await Hive.openBox<bool>('theme_settings'); // Open box for theme settings
+  await Hive.openBox<bool>('feature_flags_box'); // Open box for feature flags
 
   // Open AI Insights boxes
   await Hive.openBox<Analytics>('analytics');
@@ -178,7 +182,9 @@ void main() async {
   final helpService = HelpService();
   await helpService.loadHelpContent();
 
-  runApp(const MyApp());
+  runApp(MyApp(
+      themeBox: Hive.box<bool>('theme_settings'),
+      featureFlagBox: Hive.box<bool>('feature_flags_box')));
 }
 
 class AuthWrapper extends StatelessWidget {
@@ -216,12 +222,21 @@ class AuthWrapper extends StatelessWidget {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Box<bool> themeBox;
+  final Box<bool> featureFlagBox;
+  const MyApp(
+      {super.key, required this.themeBox, required this.featureFlagBox});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(themeBox),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => FeatureFlagService(featureFlagBox),
+        ),
         // Firebase Services
         Provider<FirebaseAuth>(
           create: (_) => FirebaseAuth.instance,
@@ -411,10 +426,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ],
-      child: MaterialApp(
-        title: 'Seva Finance',
-        theme: AppTheme.theme,
-        home: const AuthWrapper(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Seva Finance',
+            theme: AppTheme.theme(context),
+            darkTheme: AppTheme.darkTheme(context),
+            themeMode: themeProvider.themeMode,
+            home: const AuthWrapper(),
+          );
+        },
       ),
     );
   }

@@ -13,7 +13,7 @@ class HelpIcon extends StatefulWidget {
     super.key,
     required this.tooltipKey,
     this.faqId,
-    this.size = 16,
+    this.size = 24.0,
     this.color,
   });
 
@@ -32,7 +32,7 @@ class _HelpIconState extends State<HelpIcon> {
       child: GestureDetector(
         onTap: _showTooltip,
         child: Container(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(10.0),
           child: Icon(
             LucideIcons.helpCircle,
             size: widget.size,
@@ -154,7 +154,7 @@ class TooltipBubble extends StatelessWidget {
                     onTap: onClose,
                     child: Icon(
                       LucideIcons.x,
-                      size: 16,
+                      size: 24.0,
                       color: Colors.grey[400],
                     ),
                   ),
@@ -190,7 +190,7 @@ class TooltipBubble extends StatelessWidget {
                         const SizedBox(width: 4),
                         Icon(
                           LucideIcons.arrowRight,
-                          size: 12,
+                          size: 20.0,
                           color: const Color(0xFF1B4332),
                         ),
                       ],

@@ -11,6 +11,8 @@ import 'change_password_screen.dart';
 import 'welcome_screen.dart';
 import 'export_screen.dart';
 import 'notification_settings_screen.dart';
+import '../theme/theme_provider.dart';
+import '../services/feature_flag_service.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -368,6 +370,61 @@ class _AccountScreenState extends State<AccountScreen>
                             ),
                           ],
                         ),
+                      ),
+                      Divider(
+                          height: 1, color: Colors.grey[200]), // Add this line
+                      Consumer<ThemeProvider>(
+                        builder: (context, themeProvider, child) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Dark Mode',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                CupertinoSwitch(
+                                  value: themeProvider.isDarkMode,
+                                  onChanged: (value) {
+                                    themeProvider.toggleTheme();
+                                  },
+                                  activeTrackColor: AppTheme.darkGreen,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.grey[200]),
+                      Consumer<FeatureFlagService>(
+                        builder: (context, featureFlagService, child) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Enable AI Features',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                CupertinoSwitch(
+                                  value: featureFlagService.isAiFeaturesEnabled,
+                                  onChanged: (value) {
+                                    featureFlagService.toggleAiFeatures(value);
+                                  },
+                                  activeTrackColor: AppTheme.darkGreen,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

@@ -170,11 +170,12 @@
   <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: Arial, sans-serif; text-align: center; z-index: 9999;">
     <div style="width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid #1B4332; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
     <p id="loading-text" style="color: #1B4332; font-size: 16px; margin: 0; font-weight: 600;">Loading SevaFinance...</p>
-    <div id="progress-container" style="width: 200px; height: 6px; background-color: #f3f3f3; border-radius: 3px; margin: 15px auto 10px; overflow: hidden;">
+    <div id="progress-container" style="width: 200px; height: 6px; background-color: #f3f3f3; border-radius: 3px; margin: 15px auto 10px; overflow: hidden; display: none;">
       <div id="progress-bar" style="width: 0%; height: 100%; background-color: #1B4332; border-radius: 3px; transition: width 0.3s ease;"></div>
     </div>
-    <p id="progress-text" style="color: #666; font-size: 14px; margin: 0;">0%</p>
+    <p id="progress-text" style="color: #666; font-size: 14px; margin: 0; display: none;">0%</p>
     <p id="timeout-warning" style="color: #d32f2f; font-size: 12px; margin: 10px 0 0 0; display: none;">Taking longer than expected...</p>
+    <button id="try-again-button" style="background-color: #1B4332; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; display: none;" onclick="window.location.reload()">Try Again</button>
   </div>
   <style>
     @keyframes spin {
@@ -186,50 +187,28 @@
     // Loading progress simulation
     let loadingComplete = false;
     
-    function updateProgress(percent, message) {
+    function updateProgress(message) {
       if (loadingComplete) return;
-      const progressBar = document.getElementById('progress-bar');
-      const progressText = document.getElementById('progress-text');
       const loadingText = document.getElementById('loading-text');
-      
-      if (progressBar) progressBar.style.width = percent + '%';
-      if (progressText) progressText.textContent = percent + '%';
       if (message && loadingText) loadingText.textContent = message;
     }
 
     // Start progress simulation when page loads
     window.addEventListener('load', function() {
-      const stages = [
-        { percent: 20, message: 'Loading...', delay: 100 },
-        { percent: 45, message: 'Preparing...', delay: 400 },
-        { percent: 70, message: 'Starting...', delay: 800 },
-        { percent: 85, message: 'Almost ready...', delay: 1200 }
-      ];
-
-      stages.forEach(stage => {
-        setTimeout(() => updateProgress(stage.percent, stage.message), stage.delay);
-      });
-
       // Show timeout warning after 15 seconds
       setTimeout(() => {
         if (!loadingComplete) {
           const warning = document.getElementById('timeout-warning');
+          const tryAgainButton = document.getElementById('try-again-button');
           if (warning) warning.style.display = 'block';
+          if (tryAgainButton) tryAgainButton.style.display = 'block';
         }
       }, 15000);
-
-      // Auto-reload after 20 seconds
-      setTimeout(() => {
-        if (!loadingComplete) {
-          updateProgress(0, 'Reloading...');
-          setTimeout(() => window.location.reload(), 2000);
-        }
-      }, 25000);
     });
 
     // Listen for Flutter app to be ready
     window.addEventListener('flutter-first-frame', function() {
-      updateProgress(100, 'Ready!');
+      updateProgress('Ready!');
       setTimeout(() => {
         loadingComplete = true;
         const loading = document.getElementById('loading');

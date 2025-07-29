@@ -88,6 +88,7 @@ dependencies:
   
   # Web Drag & Drop (for web platform)
   flutter_dropzone: ^4.0.2
+  dots_indicator: ^4.0.1
 
 dev_dependencies:
   flutter_test:

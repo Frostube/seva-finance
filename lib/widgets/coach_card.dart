@@ -68,58 +68,82 @@ class _CoachCardState extends State<CoachCard>
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          // Main Column to hold all content
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Green lightbulb icon
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Icon(
-                Icons.lightbulb_outline,
-                color: const Color(0xFF4CAF50), // Green color
-                size: 18,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Green lightbulb icon
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(
+                    Icons.lightbulb_outline,
+                    color: const Color(0xFF4CAF50), // Green color
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Text content with "Tip:" prefix
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Tip: ',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            height: 1.3,
+                          ),
+                        ),
+                        TextSpan(
+                          text: widget.tip.message,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black87,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Small dismiss button
+                GestureDetector(
+                  onTap: () => _dismissWithAnimation(),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 1),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.grey[400],
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            // Text content with "Tip:" prefix
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Tip: ',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.3,
-                      ),
+            // Add Learn more button if onLearnMore is provided
+            if (widget.onLearnMore != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: TextButton(
+                  onPressed: widget.onLearnMore,
+                  child: Text(
+                    'Learn more',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.darkGreen,
+                      fontWeight: FontWeight.w600,
                     ),
-                    TextSpan(
-                      text: widget.tip.message,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black87,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            // Small dismiss button
-            GestureDetector(
-              onTap: () => _dismissWithAnimation(),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8, top: 1),
-                child: Icon(
-                  Icons.close,
-                  color: Colors.grey[400],
-                  size: 16,
-                ),
-              ),
-            ),
+            ],
           ],
         ),
       ),

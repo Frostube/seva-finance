@@ -36,6 +36,7 @@ class CoachTip {
   final DateTime createdAt;
   final bool isRead;
   final bool isDismissed;
+  final String? relatedScreen; // New field for navigation
 
   CoachTip({
     required this.id,
@@ -50,6 +51,7 @@ class CoachTip {
     required this.createdAt,
     this.isRead = false,
     this.isDismissed = false,
+    this.relatedScreen, // Initialize new field
   });
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +67,7 @@ class CoachTip {
         'createdAt': createdAt.toIso8601String(),
         'isRead': isRead,
         'isDismissed': isDismissed,
+        'relatedScreen': relatedScreen, // Include new field
       };
 
   factory CoachTip.fromJson(Map<String, dynamic> json) => CoachTip(
@@ -86,11 +89,13 @@ class CoachTip {
         createdAt: DateTime.parse(json['createdAt']),
         isRead: json['isRead'] ?? false,
         isDismissed: json['isDismissed'] ?? false,
+        relatedScreen: json['relatedScreen'], // Include new field
       );
 
   CoachTip copyWith({
     bool? isRead,
     bool? isDismissed,
+    String? relatedScreen, // Include new field in copyWith
   }) =>
       CoachTip(
         id: id,
@@ -105,6 +110,7 @@ class CoachTip {
         createdAt: createdAt,
         isRead: isRead ?? this.isRead,
         isDismissed: isDismissed ?? this.isDismissed,
+        relatedScreen: relatedScreen ?? this.relatedScreen, // Assign new field
       );
 }
 
@@ -337,6 +343,7 @@ class CoachService extends ChangeNotifier {
         actionUrl: '/budget',
         value: '\$${(-difference).toStringAsFixed(2)} over budget',
         createdAt: DateTime.now(),
+        relatedScreen: 'budget', // Add related screen
       );
     } else if (difference < -50) {
       return CoachTip(
@@ -351,6 +358,7 @@ class CoachService extends ChangeNotifier {
         actionUrl: '/expenses',
         value: '\$${(-difference).toStringAsFixed(2)} potential overspend',
         createdAt: DateTime.now(),
+        relatedScreen: 'expenses', // Add related screen
       );
     }
 
@@ -376,6 +384,7 @@ class CoachService extends ChangeNotifier {
         actionUrl: '/savings',
         value: '\$${potentialSavings.toStringAsFixed(2)} potential savings',
         createdAt: DateTime.now(),
+        relatedScreen: 'savings', // Add related screen
       );
     }
 
@@ -405,6 +414,7 @@ class CoachService extends ChangeNotifier {
           actionUrl: '/expenses',
           value: '+${percentDiff.toStringAsFixed(0)}% vs baseline',
           createdAt: DateTime.now(),
+          relatedScreen: 'expenses', // Add related screen
         );
       } else if (percentDiff < -15) {
         return CoachTip(
@@ -419,6 +429,7 @@ class CoachService extends ChangeNotifier {
           actionUrl: '/analytics',
           value: '-${percentDiff.abs().toStringAsFixed(0)}% vs baseline',
           createdAt: DateTime.now(),
+          relatedScreen: 'insights', // Add related screen
         );
       }
     }
@@ -443,6 +454,7 @@ class CoachService extends ChangeNotifier {
         actionText: 'Set Goals',
         actionUrl: '/goals',
         createdAt: DateTime.now(),
+        relatedScreen: 'goals', // Add related screen
       );
     }
 
@@ -461,6 +473,7 @@ class CoachService extends ChangeNotifier {
       actionText: 'Learn More',
       actionUrl: '/help',
       createdAt: DateTime.now(),
+      relatedScreen: 'help', // Add related screen
     );
   }
 

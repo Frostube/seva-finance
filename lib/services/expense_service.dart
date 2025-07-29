@@ -70,6 +70,7 @@ class ExpenseService with ChangeNotifier {
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
+  bool get hasAddedExpense => _expenses.isNotEmpty; // New getter
 
   String? get _userId => _auth.currentUser?.uid;
 

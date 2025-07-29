@@ -10,6 +10,7 @@ import '../services/analytics_service.dart';
 import '../services/insights_service.dart';
 import '../services/insight_notification_service.dart';
 import '../widgets/onboarding_tour_overlay.dart';
+import '../widgets/add_options_bottom_sheet.dart'; // Added import for AddOptionsBottomSheet
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -119,51 +120,73 @@ class _MainScreenState extends State<MainScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, LucideIcons.home),
-                    _buildNavItem(1, LucideIcons.circleDollarSign),
-                    _buildNavItem(2, LucideIcons.lightbulb),
-                    _buildNavItem(3, LucideIcons.userCircle),
+                    _buildNavItem(0, LucideIcons.home, 'Home'),
+                    _buildNavItem(1, LucideIcons.circleDollarSign, 'Budget'),
+                    _buildNavItem(2, LucideIcons.lightbulb, 'Insights'),
+                    _buildNavItem(3, LucideIcons.userCircle, 'Profile'),
                   ],
                 ),
               ),
             ),
-            // Removed floating action buttons from dashboard
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _showAddOptions(context),
+              backgroundColor: const Color(0xFF1B4332),
+              shape: const CircleBorder(),
+              child:
+                  const Icon(LucideIcons.plus, color: Colors.white, size: 32),
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon) {
+  Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () => _onNavigate(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE9F1EC) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _navLabels[index],
-              style: TextStyle(
-                fontSize: 12,
+      child: Tooltip(
+        message: label,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFE9F1EC) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
                 color: isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                size: 24,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color:
+                      isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return const AddOptionsBottomSheet();
+      },
     );
   }
 

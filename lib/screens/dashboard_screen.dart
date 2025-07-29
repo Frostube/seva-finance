@@ -32,6 +32,18 @@ import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../widgets/trial_banner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/suggestion_bar.dart'; // Added import
+import 'package:hive/hive.dart';
+import 'package:dots_indicator/dots_indicator.dart'; // Import for dots indicator
+import '../services/coach_service.dart'; // Import CoachService
+import '../widgets/coach_card.dart'; // Import CoachCard
+import '../services/feature_gate_service.dart'; // Import FeatureGateService
+import '../services/subscription_service.dart'; // Import SubscriptionService
+import 'expenses_screen.dart'; // For expenses screen
+import 'add_budget_screen.dart'; // For budgets screen
+import 'insights_screen.dart'; // For insights screen
+import 'help_faqs_screen.dart'; // For help screen
+import '../services/feature_flag_service.dart'; // Corrected import for FeatureFlagService
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -47,11 +59,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Wallet> _wallets = [];
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
   bool _isScreenLoading = true;
+  bool _showChatButton = false; // New state variable
+  Timer? _chatButtonTimer; // Timer for delayed appearance
+  List<CoachTip> _coachTips = []; // List to hold coach tips
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     _initializeAsyncDependencies();
+    _startChatButtonTimer(); // Start the timer when the screen initializes
+    _loadCoachTips(); // Load coach tips
+
+    _pageController.addListener(() {
+      if (_pageController.page?.round() != _currentPage) {
+        setState(() {
+          _currentPage = _pageController.page!.round();
+        });
+      }
+    });
 
     // Listen for wallet changes
     _walletBoxSubscription =
@@ -111,12 +138,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (!mounted) return;
 
+      // Generate coach tips after all services are initialized
+      final coachService = Provider.of<CoachService>(context, listen: false);
+      final featureFlagService =
+          Provider.of<FeatureFlagService>(context, listen: false);
+
+      if (featureFlagService.isAiFeaturesEnabled) {
+        await coachService.loadCoachTips(); // Corrected method name
+        await coachService
+            .generateCoachTips(); // Call generateCoachTips as well
+      }
+
       // Load wallets only if we're still mounted
       _loadWallets();
 
       if (mounted) {
         setState(() {
           _isScreenLoading = false;
+          _coachTips = coachService.tips; // Load tips into local state
         });
       }
 
@@ -142,7 +181,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _walletBoxSubscription.cancel();
+    _chatButtonTimer?.cancel(); // Cancel the timer when the widget is disposed
+    _pageController.dispose(); // Dispose the PageController
     super.dispose();
+  }
+
+  Future<void> _loadCoachTips() async {
+    final coachService = Provider.of<CoachService>(context, listen: false);
+    await coachService.loadCoachTips();
+    setState(() {
+      _coachTips = coachService.tips; // Update list of tips from service
+    });
+  }
+
+  void _startChatButtonTimer() async {
+    final chatBox = await Hive.openBox<bool>('chat_settings');
+    final hasInteractedWithDashboard =
+        chatBox.get('hasInteractedWithDashboard', defaultValue: false)!;
+
+    if (hasInteractedWithDashboard) {
+      setState(() {
+        _showChatButton = true;
+      });
+    } else {
+      _chatButtonTimer = Timer(const Duration(seconds: 30), () {
+        if (mounted) {
+          setState(() {
+            _showChatButton = true;
+            chatBox.put('hasInteractedWithDashboard', true); // Persist state
+          });
+        }
+      });
+    }
+  }
+
+  void _recordDashboardInteraction() async {
+    final chatBox = await Hive.openBox<bool>('chat_settings');
+    if (!chatBox.get('hasInteractedWithDashboard', defaultValue: false)!) {
+      chatBox.put('hasInteractedWithDashboard', true);
+      setState(() {
+        _showChatButton = true;
+      });
+    }
   }
 
   void _loadWallets() {
@@ -171,6 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildWalletCard(Wallet wallet) {
     return GestureDetector(
       onTap: () {
+        _recordDashboardInteraction(); // Record interaction
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -698,10 +779,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     // AI Insights Forecast Banner
                     const ForecastBanner(),
 
+                    // Coach Cards Carousel
+                    if (_coachTips.isNotEmpty)
+                      Column(
+                        children: [
+                          SizedBox(
+                            height: 120, // Height of the carousel
+                            child: PageView.builder(
+                              controller: _pageController,
+                              itemCount: _coachTips.length,
+                              itemBuilder: (context, index) {
+                                final tip = _coachTips[index];
+                                return CoachCard(
+                                  tip: tip,
+                                  onDismiss: () {
+                                    // Handle dismiss: remove from list and potentially mark as read
+                                    setState(() {
+                                      _coachTips.removeAt(index);
+                                    });
+                                  },
+                                  onLearnMore: tip.relatedScreen != null
+                                      ? () => _navigateToCoachRelatedScreen(
+                                          tip.relatedScreen!)
+                                      : null,
+                                );
+                              },
+                            ),
+                          ),
+                          if (_coachTips.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: DotsIndicator(
+                                dotsCount: _coachTips.length,
+                                position:
+                                    _currentPage.toDouble(), // Cast to double
+                                decorator: DotsDecorator(
+                                  size: const Size.square(9.0),
+                                  activeSize: const Size(18.0, 9.0),
+                                  activeShape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5.0)),
+                                  activeColor: AppTheme.darkGreen,
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                    // Suggestion Bar (conditionally displayed)
+                    Consumer<ExpenseService>(
+                      builder: (context, expenseService, child) {
+                        if (expenseService.hasAddedExpense) {
+                          return Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24.0, vertical: 16.0),
+                            child: SuggestionBar(
+                              suggestions: const [], // Dummy empty list for now
+                              onSuggestionTap: (suggestion) {},
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+
                     // Recent Expenses Preview
                     _buildRecentExpensesPreview(),
 
-                    const SizedBox(height: 100), // Space for FAB
+                    const SizedBox(
+                        height: 0), // Removed fixed space that caused overflow
                   ],
                 ),
               ),
@@ -714,7 +860,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         height: 56,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.darkGreen, AppTheme.primaryGreen],
+            colors: [
+              AppTheme.darkGreen,
+              AppTheme.primaryGreen,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -727,19 +876,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        child: FloatingActionButton(
-          heroTag: "dashboard_chat_fab",
-          onPressed: () => _showChatModal(context),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: const Icon(
-            CupertinoIcons.chat_bubble_text_fill,
-            color: Colors.white,
-            size: 24,
+        child: AnimatedOpacity(
+          opacity: _showChatButton ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 500),
+          child: IgnorePointer(
+            ignoring: !_showChatButton,
+            child: FloatingActionButton(
+              heroTag: "dashboard_chat_fab",
+              onPressed: () {
+                _recordDashboardInteraction(); // Record interaction
+                _showChatModal(context);
+              },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: const Icon(
+                CupertinoIcons.chat_bubble_text_fill,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  void _navigateToCoachRelatedScreen(String screenName) {
+    print('Navigating to coach related screen: $screenName');
+    switch (screenName) {
+      case 'budget':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => AddBudgetScreen(
+                    currentBudget: 0.0,
+                    onBudgetUpdated: () {}))); // Corrected onBudgetUpdated
+        break;
+      case 'expenses':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const ExpensesScreen()));
+        break;
+      case 'savings':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => GoalsAndAlertsScreen(
+                      walletId: _wallets.isNotEmpty
+                          ? _wallets.first.id
+                          : '', // Provide walletId
+                      spendingAlertService: Provider.of(context, listen: false),
+                      savingsGoalService: Provider.of(context, listen: false),
+                    )));
+        break;
+      case 'insights':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const InsightsScreen()));
+        break;
+      case 'goals':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => GoalsAndAlertsScreen(
+                      walletId: _wallets.isNotEmpty
+                          ? _wallets.first.id
+                          : '', // Provide walletId
+                      spendingAlertService: Provider.of(context, listen: false),
+                      savingsGoalService: Provider.of(context, listen: false),
+                    )));
+        break;
+      case 'help':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const HelpFAQsScreen()));
+        break;
+      default:
+        // Optionally, navigate to a general dashboard or show an error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Navigation for $screenName is not yet implemented.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        break;
+    }
   }
 
   Widget _buildRecentExpensesPreview() {
