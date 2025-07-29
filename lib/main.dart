@@ -27,6 +27,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'firebase_options.dart';
 import 'services/budget_service.dart';
 import 'services/budget_template_service.dart';
@@ -49,6 +50,24 @@ import 'services/push_notification_service.dart';
 import 'services/help_service.dart';
 import 'services/chat_service.dart';
 import 'services/coach_service.dart';
+import 'services/user_service.dart';
+import 'services/feature_gate_service.dart';
+import 'services/subscription_service.dart';
+import 'models/user.dart' as app_user;
+import 'models/feature_flag.dart';
+
+// Helper function to safely register Hive adapters
+void _registerAdapterSafe<T>(
+    int typeId, TypeAdapter<T> Function() adapterFactory) {
+  try {
+    if (!Hive.isAdapterRegistered(typeId)) {
+      Hive.registerAdapter(adapterFactory());
+    }
+  } catch (e) {
+    // Adapter already registered, ignore
+    debugPrint('Adapter $typeId already registered: $e');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,19 +141,15 @@ void main() async {
     Hive.registerAdapter(RecurringTransactionAdapter());
   }
 
-  // Register new AI Insights adapters
-  if (!Hive.isAdapterRegistered(20)) {
-    Hive.registerAdapter(AnalyticsAdapter());
-  }
-  if (!Hive.isAdapterRegistered(21)) {
-    Hive.registerAdapter(InsightAdapter());
-  }
-  if (!Hive.isAdapterRegistered(22)) {
-    Hive.registerAdapter(InsightTypeAdapter());
-  }
-  if (!Hive.isAdapterRegistered(23)) {
-    Hive.registerAdapter(InsightPriorityAdapter());
-  }
+  // Register new AI Insights adapters with safe registration
+  _registerAdapterSafe(20, () => AnalyticsAdapter());
+  _registerAdapterSafe(21, () => InsightAdapter());
+  _registerAdapterSafe(22, () => InsightTypeAdapter());
+  _registerAdapterSafe(23, () => InsightPriorityAdapter());
+
+  // Register ProPlan adapters with safe registration
+  _registerAdapterSafe(24, () => app_user.UserAdapter());
+  _registerAdapterSafe(25, () => FeatureFlagAdapter());
 
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Expense>('expenses');
@@ -154,6 +169,11 @@ void main() async {
   await Hive.openBox<Analytics>('analytics');
   await Hive.openBox<Insight>('insights');
 
+  // Open ProPlan boxes
+  await Hive.openBox<app_user.User>('users');
+  await Hive.openBox<FeatureFlag>('feature_flags');
+  await Hive.openBox<Map<String, dynamic>>('usage_tracking');
+
   // Initialize help content
   final helpService = HelpService();
   await helpService.loadHelpContent();
@@ -167,6 +187,12 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
+    final userService = Provider.of<UserService>(context);
+
+    // Inject UserService into AuthService after providers are set up
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      authService.setUserService(userService);
+    });
 
     return StreamBuilder<User?>(
       stream: authService.userStream,
@@ -215,10 +241,37 @@ class MyApp extends StatelessWidget {
         Provider<FirebaseRemoteConfig>(
           create: (_) => FirebaseRemoteConfig.instance,
         ),
+        Provider(
+          create: (_) => FirebaseFunctions.instance,
+        ),
 
         // App Services
         ChangeNotifierProvider(
           create: (_) => StorageService(),
+        ),
+
+        // ProPlan Services
+        ChangeNotifierProvider(
+          create: (context) => UserService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<FirebaseAuth>(context, listen: false),
+            Hive.box<app_user.User>('users'),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => FeatureGateService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            Provider.of<UserService>(context, listen: false),
+            Hive.box<FeatureFlag>('feature_flags'),
+            Hive.box<Map<String, dynamic>>('usage_tracking'),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => SubscriptionService(
+            Provider.of<FirebaseFirestore>(context, listen: false),
+            FirebaseFunctions.instance,
+            Provider.of<UserService>(context, listen: false),
+          ),
         ),
         ChangeNotifierProvider(
           create: (context) => NotificationService(

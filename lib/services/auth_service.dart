@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'user_service.dart';
 
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  UserService? _userService;
   User? _user;
   bool _isLoading = false;
 
@@ -12,7 +14,7 @@ class AuthService with ChangeNotifier {
     // Set persistence to LOCAL to maintain session
     _auth.setPersistence(Persistence.LOCAL);
     print('AuthService: Persistence set to LOCAL.');
-    
+
     // Listen to auth state changes
     _auth.authStateChanges().listen((User? user) {
       print('AuthService: authStateChanges fired. User is: \${user?.uid}');
@@ -28,6 +30,11 @@ class AuthService with ChangeNotifier {
   // Expose the auth state changes stream
   Stream<User?> get userStream => _auth.authStateChanges();
 
+  // Inject UserService (called from main.dart after providers are set up)
+  void setUserService(UserService userService) {
+    _userService = userService;
+  }
+
   Future<void> signUp({
     required String email,
     required String password,
@@ -38,30 +45,24 @@ class AuthService with ChangeNotifier {
       notifyListeners();
 
       print('Creating user account...'); // Debug log
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       print('User account created successfully'); // Debug log
 
-      print('Creating user profile in Firestore...'); // Debug log
+      // Update Firebase Auth profile with display name
       try {
-        // Create a normalized username from the name
-        final normalizedUsername = name.toLowerCase().replaceAll(' ', '').trim();
-        print('DEBUG: Creating user with normalized username: $normalizedUsername');
-        
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'name': name,
-          'email': email,
-          'username': normalizedUsername,
-          'createdAt': FieldValue.serverTimestamp(),
-        }).timeout(const Duration(seconds: 10)); // Add 10 second timeout
-        print('DEBUG: User profile created successfully with username: $normalizedUsername'); // Debug log
-      } catch (firestoreError) {
-        print('DEBUG: Error creating user profile: $firestoreError'); // Debug log
-        // Even if Firestore fails, we can still proceed since the auth account was created
-        // We'll try to update the profile later when the connection is better
+        await userCredential.user!.updateDisplayName(name);
+        print('DEBUG: Firebase Auth display name updated');
+      } catch (e) {
+        print('DEBUG: Error updating display name: $e');
       }
+
+      // UserService will automatically create the user profile with ProPlan features
+      // when it detects the new Firebase Auth user
+      print('DEBUG: UserService will handle ProPlan user profile creation');
 
       _isLoading = false;
       notifyListeners();
@@ -87,28 +88,31 @@ class AuthService with ChangeNotifier {
       notifyListeners();
 
       String email = emailOrUsername;
-      
+
       // If the input doesn't look like an email, try to find the email by username
       if (!emailOrUsername.contains('@')) {
         print('DEBUG: Input looks like a username, searching in Firestore');
         final usersRef = _firestore.collection('users');
-        
+
         // Debug: Check collection structure
         print('DEBUG: Checking Firestore collection structure...');
         try {
           final usersSnapshot = await usersRef.limit(1).get();
-          print('DEBUG: Users collection exists: ${usersSnapshot.docs.isNotEmpty}');
+          print(
+              'DEBUG: Users collection exists: ${usersSnapshot.docs.isNotEmpty}');
           if (usersSnapshot.docs.isNotEmpty) {
-            print('DEBUG: Sample user document fields: ${usersSnapshot.docs.first.data().keys.toList()}');
+            print(
+                'DEBUG: Sample user document fields: ${usersSnapshot.docs.first.data().keys.toList()}');
           }
         } catch (e) {
           print('DEBUG: Error checking Firestore structure: $e');
         }
-        
+
         // Normalize the username input the same way we do during signup
-        final normalizedUsername = emailOrUsername.toLowerCase().replaceAll(' ', '').trim();
+        final normalizedUsername =
+            emailOrUsername.toLowerCase().replaceAll(' ', '').trim();
         print('DEBUG: Searching for normalized username: $normalizedUsername');
-        
+
         try {
           print('DEBUG: Executing Firestore query...');
           final querySnapshot = await usersRef
@@ -116,9 +120,10 @@ class AuthService with ChangeNotifier {
               .get()
               .timeout(const Duration(seconds: 10));
 
-          print('DEBUG: Firestore query completed. Found ${querySnapshot.docs.length} matches');
+          print(
+              'DEBUG: Firestore query completed. Found ${querySnapshot.docs.length} matches');
           print('DEBUG: Query path: ${usersRef.path}');
-          
+
           if (querySnapshot.docs.isEmpty) {
             print('DEBUG: No user found with username: $normalizedUsername');
             throw FirebaseAuthException(
@@ -128,7 +133,8 @@ class AuthService with ChangeNotifier {
           }
 
           email = querySnapshot.docs.first.get('email') as String;
-          print('DEBUG: Found corresponding email: $email for username: $normalizedUsername');
+          print(
+              'DEBUG: Found corresponding email: $email for username: $normalizedUsername');
         } catch (e) {
           print('DEBUG: Error during username lookup: $e');
           print('DEBUG: Error type: ${e.runtimeType}');
@@ -147,7 +153,8 @@ class AuthService with ChangeNotifier {
         email: email,
         password: password,
       );
-      print('DEBUG: Sign in successful for user: ${userCredential.user?.email}');
+      print(
+          'DEBUG: Sign in successful for user: ${userCredential.user?.email}');
 
       _isLoading = false;
       notifyListeners();
@@ -168,6 +175,7 @@ class AuthService with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      // UserService will automatically clear data when auth state changes
       await _auth.signOut();
 
       _isLoading = false;
@@ -235,7 +243,8 @@ class AuthService with ChangeNotifier {
     }
 
     try {
-      print('deleteAccount: Starting account deletion process for user ${_user!.email}');
+      print(
+          'deleteAccount: Starting account deletion process for user ${_user!.email}');
       _isLoading = true;
       notifyListeners();
 
@@ -244,38 +253,51 @@ class AuthService with ChangeNotifier {
       try {
         // Delete user profile
         print('deleteAccount: Deleting user profile');
-        await _firestore.collection('users').doc(_user!.uid).delete()
-          .timeout(const Duration(seconds: 10));
+        await _firestore
+            .collection('users')
+            .doc(_user!.uid)
+            .delete()
+            .timeout(const Duration(seconds: 10));
         print('deleteAccount: User profile deleted successfully');
-        
+
         // Delete user's wallets
         print('deleteAccount: Deleting user wallets');
-        final walletSnapshot = await _firestore.collection('wallets')
-          .where('userId', isEqualTo: _user!.uid).get();
-        print('deleteAccount: Found ${walletSnapshot.docs.length} wallets to delete');
+        final walletSnapshot = await _firestore
+            .collection('wallets')
+            .where('userId', isEqualTo: _user!.uid)
+            .get();
+        print(
+            'deleteAccount: Found ${walletSnapshot.docs.length} wallets to delete');
         for (var doc in walletSnapshot.docs) {
           await doc.reference.delete();
         }
 
         // Delete user's expenses
         print('deleteAccount: Deleting user expenses');
-        final expenseSnapshot = await _firestore.collection('expenses')
-          .where('userId', isEqualTo: _user!.uid).get();
-        print('deleteAccount: Found ${expenseSnapshot.docs.length} expenses to delete');
+        final expenseSnapshot = await _firestore
+            .collection('expenses')
+            .where('userId', isEqualTo: _user!.uid)
+            .get();
+        print(
+            'deleteAccount: Found ${expenseSnapshot.docs.length} expenses to delete');
         for (var doc in expenseSnapshot.docs) {
           await doc.reference.delete();
         }
 
         // Delete user's savings goals
         print('deleteAccount: Deleting user savings goals');
-        final savingsSnapshot = await _firestore.collection('savings_goals')
-          .where('userId', isEqualTo: _user!.uid).get();
-        print('deleteAccount: Found ${savingsSnapshot.docs.length} savings goals to delete');
+        final savingsSnapshot = await _firestore
+            .collection('savings_goals')
+            .where('userId', isEqualTo: _user!.uid)
+            .get();
+        print(
+            'deleteAccount: Found ${savingsSnapshot.docs.length} savings goals to delete');
         for (var doc in savingsSnapshot.docs) {
           await doc.reference.delete();
         }
 
-        print('deleteAccount: All user data deleted from Firestore successfully');
+        print(
+            'deleteAccount: All user data deleted from Firestore successfully');
       } catch (e) {
         print('deleteAccount: Error deleting user data from Firestore: $e');
         // Continue with account deletion even if Firestore cleanup fails
@@ -293,7 +315,8 @@ class AuthService with ChangeNotifier {
           notifyListeners();
           throw FirebaseAuthException(
             code: 'requires-recent-login',
-            message: 'For security reasons, please log out and log in again before deleting your account.',
+            message:
+                'For security reasons, please log out and log in again before deleting your account.',
           );
         }
         rethrow;
@@ -309,4 +332,4 @@ class AuthService with ChangeNotifier {
       rethrow;
     }
   }
-} 
+}

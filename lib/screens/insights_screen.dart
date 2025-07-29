@@ -7,6 +7,9 @@ import '../services/analytics_service.dart';
 import '../services/notification_service.dart';
 import '../models/insight.dart';
 import '../widgets/insight_card.dart';
+import '../widgets/pro_gate.dart';
+import '../models/feature_flag.dart';
+import '../services/feature_gate_service.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -326,52 +329,64 @@ class _InsightsScreenState extends State<InsightsScreen>
           ],
         ),
       ),
-      body: Consumer<InsightsService>(
-        builder: (context, insightsService, child) {
-          if (insightsService.isLoading && insightsService.insights.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B4332)),
-              ),
-            );
-          }
+      body: ProGate(
+        feature: FeatureFlags.aiInsights,
+        child: Consumer<InsightsService>(
+          builder: (context, insightsService, child) {
+            if (insightsService.isLoading && insightsService.insights.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B4332)),
+                ),
+              );
+            }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildInsightsList(
-                _getFilteredInsights(insightsService.insights),
-                'No insights available yet',
-              ),
-              _buildInsightsList(
-                _getFilteredInsights(insightsService.unreadInsights),
-                'No unread insights',
-              ),
-            ],
-          );
-        },
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _buildInsightsList(
+                  _getFilteredInsights(insightsService.insights),
+                  'No insights available yet',
+                ),
+                _buildInsightsList(
+                  _getFilteredInsights(insightsService.unreadInsights),
+                  'No unread insights',
+                ),
+              ],
+            );
+          },
+        ),
       ),
       floatingActionButton: _isModalOpen
           ? null
-          : Consumer<AnalyticsService>(
-              builder: (context, analyticsService, child) {
-                final forecastedBalance =
-                    analyticsService.getForecastedBalance();
-                if (forecastedBalance == 0) return const SizedBox();
+          : Consumer<FeatureGateService>(
+              builder: (context, gateService, child) {
+                final access = gateService
+                    .checkFeatureAccess(FeatureFlags.aiInsights)
+                    .hasAccess;
+                if (!access) return const SizedBox.shrink();
 
-                return FloatingActionButton.extended(
-                  heroTag: "insights_forecast_fab",
-                  onPressed: () => _showForecastDialog(forecastedBalance),
-                  backgroundColor: const Color(0xFF1B4332),
-                  icon: const Icon(CupertinoIcons.graph_circle,
-                      color: Colors.white),
-                  label: Text(
-                    'Balance Forecast',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                return Consumer<AnalyticsService>(
+                  builder: (context, analyticsService, child) {
+                    final forecastedBalance =
+                        analyticsService.getForecastedBalance();
+                    if (forecastedBalance == 0) return const SizedBox();
+
+                    return FloatingActionButton.extended(
+                      heroTag: "insights_forecast_fab",
+                      onPressed: () => _showForecastDialog(forecastedBalance),
+                      backgroundColor: const Color(0xFF1B4332),
+                      icon: const Icon(CupertinoIcons.graph_circle,
+                          color: Colors.white),
+                      label: Text(
+                        'Balance Forecast',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),

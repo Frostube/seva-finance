@@ -9,6 +9,9 @@ import 'linked_cards_screen.dart';
 import 'onboarding_debug_screen.dart';
 import 'help_faqs_screen.dart';
 import 'debug_coach_screen.dart';
+import '../widgets/pro_gate.dart';
+import '../services/user_service.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,8 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
-  String _userName = '';
-  String _userEmail = '';
   bool _isLoading = true;
 
   @override
@@ -37,31 +38,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       curve: Curves.easeInOut,
     );
     _controller.forward();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          _userName = data['name'] ?? '';
-          _userEmail = user.email ?? '';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading user data: $e');
-      setState(() => _isLoading = false);
-    }
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -181,23 +160,58 @@ class _ProfileScreenState extends State<ProfileScreen>
                         const SizedBox(height: 16),
 
                         // Name
-                        Text(
-                          _isLoading ? 'Loading...' : _userName,
-                          style: GoogleFonts.inter(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Consumer<UserService>(
+                          builder: (context, userService, child) {
+                            final user = userService.currentUser;
+                            final firebaseUser =
+                                FirebaseAuth.instance.currentUser;
+
+                            // Use same fallback logic as Dashboard
+                            String displayName = user?.name ?? '';
+                            print(
+                                'DEBUG Profile: UserService name: "${user?.name}"');
+                            if (displayName.isEmpty) {
+                              displayName = firebaseUser?.displayName ?? '';
+                              print(
+                                  'DEBUG Profile: FirebaseAuth displayName: "$displayName"');
+                            }
+                            if (displayName.isEmpty) {
+                              displayName = 'User';
+                            }
+                            print(
+                                'DEBUG Profile: Final displayName: "$displayName"');
+
+                            return Text(
+                              _isLoading ? 'Loading...' : displayName,
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 4),
 
                         // Email
-                        Text(
-                          _isLoading ? 'Loading...' : _userEmail,
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
+                        Consumer<UserService>(
+                          builder: (context, userService, child) {
+                            final user = userService.currentUser;
+                            final firebaseUser =
+                                FirebaseAuth.instance.currentUser;
+                            final email =
+                                user?.email ?? firebaseUser?.email ?? '';
+
+                            return Text(
+                              _isLoading ? 'Loading...' : email,
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            );
+                          },
                         ),
+                        const SizedBox(height: 4),
+                        const ProBadge(),
                         const SizedBox(height: 32),
                       ],
                     ),

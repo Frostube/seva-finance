@@ -52,6 +52,18 @@ class ExpenseService with ChangeNotifier {
       // this._storage, // Removed
       this._categoryService) {
     _initialLoadFuture = _loadExpenses();
+
+    // Listen to authentication changes to clear or reload expenses accordingly
+    _auth.authStateChanges().listen((User? user) {
+      if (user != null) {
+        debugPrint('ExpenseService: User logged in, reloading expenses...');
+        _loadExpenses();
+      } else {
+        debugPrint('ExpenseService: User logged out, clearing expenses...');
+        _expenses = [];
+        notifyListeners();
+      }
+    });
   }
 
   Future<void>? get initializationComplete => _initialLoadFuture;

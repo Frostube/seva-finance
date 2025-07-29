@@ -25,6 +25,11 @@ class WalletService with ChangeNotifier {
         // User logged in, reload wallets
         debugPrint('WalletService: User logged in, reloading wallets...');
         _loadWallets();
+      } else {
+        // User logged out, clear wallets list and notify listeners
+        debugPrint('WalletService: User logged out, clearing wallets...');
+        _wallets = [];
+        notifyListeners();
       }
     });
   }

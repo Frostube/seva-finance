@@ -29,6 +29,9 @@ import '../widgets/forecast_banner.dart';
 import '../widgets/help_icon.dart';
 import '../widgets/chat_modal.dart';
 import '../services/chat_service.dart';
+import '../services/user_service.dart';
+import '../widgets/trial_banner.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -59,50 +62,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _initializeAsyncDependencies() async {
     print('DashboardScreen: _initializeAsyncDependencies START');
-    _walletService = Provider.of<WalletService>(context, listen: false);
-    _categoryService = Provider.of<CategoryService>(context, listen: false);
 
-    if (_walletService.initializationComplete != null) {
-      print('DashboardScreen: Awaiting WalletService initialization...');
-      await _walletService.initializationComplete;
-      print('DashboardScreen: WalletService initialization COMPLETE');
-    } else {
-      print('DashboardScreen: WalletService.initializationComplete is null');
+    if (!mounted) return;
+
+    try {
+      _walletService = Provider.of<WalletService>(context, listen: false);
+      _categoryService = Provider.of<CategoryService>(context, listen: false);
+
+      // Wait for WalletService initialization
+      if (_walletService.initializationComplete != null) {
+        print('DashboardScreen: Awaiting WalletService initialization...');
+        await _walletService.initializationComplete;
+        print('DashboardScreen: WalletService initialization COMPLETE');
+      } else {
+        print('DashboardScreen: WalletService.initializationComplete is null');
+      }
+
+      if (!mounted) return;
+
+      // Wait for CategoryService initialization
+      if (_categoryService.initializationComplete != null) {
+        print('DashboardScreen: Awaiting CategoryService initialization...');
+        await _categoryService.initializationComplete;
+        print('DashboardScreen: CategoryService initialization COMPLETE');
+      } else {
+        print(
+            'DashboardScreen: CategoryService.initializationComplete is null');
+      }
+
+      if (!mounted) return;
+
+      // Initialize ExpenseService
+      _expenseService = ExpenseService(
+        Hive.box<Expense>('expenses'),
+        _walletService,
+        Provider.of<NotificationService>(context, listen: false),
+        Provider.of<FirebaseFirestore>(context, listen: false),
+        _categoryService,
+      );
+
+      if (_expenseService.initializationComplete != null) {
+        print('DashboardScreen: Awaiting ExpenseService initialization...');
+        await _expenseService.initializationComplete;
+        print('DashboardScreen: ExpenseService initialization COMPLETE');
+      } else {
+        print('DashboardScreen: ExpenseService.initializationComplete is null');
+      }
+
+      if (!mounted) return;
+
+      // Load wallets only if we're still mounted
+      _loadWallets();
+
+      if (mounted) {
+        setState(() {
+          _isScreenLoading = false;
+        });
+      }
+
+      print(
+          'DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: $_isScreenLoading');
+    } catch (e) {
+      print('DashboardScreen: Error during initialization: $e');
+      if (mounted) {
+        setState(() {
+          _isScreenLoading = false;
+        });
+        // Show error to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error initializing dashboard: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-
-    if (_categoryService.initializationComplete != null) {
-      print('DashboardScreen: Awaiting CategoryService initialization...');
-      await _categoryService.initializationComplete;
-      print('DashboardScreen: CategoryService initialization COMPLETE');
-    } else {
-      print('DashboardScreen: CategoryService.initializationComplete is null');
-    }
-
-    _expenseService = ExpenseService(
-      Hive.box<Expense>('expenses'),
-      _walletService,
-      Provider.of<NotificationService>(context, listen: false),
-      Provider.of<FirebaseFirestore>(context, listen: false),
-      _categoryService,
-    );
-
-    if (_expenseService.initializationComplete != null) {
-      print('DashboardScreen: Awaiting ExpenseService initialization...');
-      await _expenseService.initializationComplete;
-      print('DashboardScreen: ExpenseService initialization COMPLETE');
-    } else {
-      print('DashboardScreen: ExpenseService.initializationComplete is null');
-    }
-
-    _loadWallets();
-
-    if (mounted) {
-      setState(() {
-        _isScreenLoading = false;
-      });
-    }
-    print(
-        'DashboardScreen: _initializeAsyncDependencies END, _isScreenLoading: $_isScreenLoading');
   }
 
   @override
@@ -112,9 +146,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _loadWallets() {
-    setState(() {
-      _wallets = _walletService.getAllWallets();
-    });
+    if (!mounted) return;
+
+    try {
+      final wallets = _walletService.getAllWallets();
+      if (mounted) {
+        setState(() {
+          _wallets = wallets;
+        });
+      }
+    } catch (e) {
+      print('DashboardScreen: Error loading wallets: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading wallets: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildWalletCard(Wallet wallet) {
@@ -246,62 +297,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showAddGoalSheet(Wallet wallet) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext bottomSheetContext) => SetSavingsGoalSheet(
-        walletId: wallet.id,
-        savingsService: Provider.of<SavingsGoalService>(context, listen: false),
-        onGoalAdded: () {
-          // First close the bottom sheet
-          Navigator.pop(bottomSheetContext);
-          // Then update the state
-          setState(() {});
-          // Show confirmation
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Savings goal added successfully',
-                style: GoogleFonts.inter(),
-              ),
-              backgroundColor: const Color(0xFF1B4332),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
-      ),
-    );
+    if (!mounted) return;
+
+    try {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext bottomSheetContext) => SetSavingsGoalSheet(
+          walletId: wallet.id,
+          savingsService:
+              Provider.of<SavingsGoalService>(context, listen: false),
+          onGoalAdded: () {
+            // First close the bottom sheet
+            Navigator.pop(bottomSheetContext);
+            // Then update the state if still mounted
+            if (mounted) {
+              setState(() {});
+              // Show confirmation
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Savings goal added successfully',
+                    style: GoogleFonts.inter(),
+                  ),
+                  backgroundColor: const Color(0xFF1B4332),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+        ),
+      );
+    } catch (e) {
+      print('DashboardScreen: Error showing add goal sheet: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding savings goal: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showAddAlertSheet(Wallet wallet) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext bottomSheetContext) => SetSpendingAlertSheet(
-        walletId: wallet.id,
-        savingsService:
-            Provider.of<SpendingAlertService>(context, listen: false),
-        onAlertAdded: () {
-          // First close the bottom sheet
-          Navigator.pop(bottomSheetContext);
-          // Then update the state
-          setState(() {});
-          // Show confirmation
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Spending alert added successfully',
-                style: GoogleFonts.inter(),
-              ),
-              backgroundColor: const Color(0xFF1B4332),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
-      ),
-    );
+    if (!mounted) return;
+
+    try {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext bottomSheetContext) => SetSpendingAlertSheet(
+          walletId: wallet.id,
+          savingsService:
+              Provider.of<SpendingAlertService>(context, listen: false),
+          onAlertAdded: () {
+            // First close the bottom sheet
+            Navigator.pop(bottomSheetContext);
+            // Then update the state if still mounted
+            if (mounted) {
+              setState(() {});
+              // Show confirmation
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Spending alert added successfully',
+                    style: GoogleFonts.inter(),
+                  ),
+                  backgroundColor: const Color(0xFF1B4332),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+        ),
+      );
+    } catch (e) {
+      print('DashboardScreen: Error showing add alert sheet: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding spending alert: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _navigateToGoalsAndAlerts(Wallet wallet) {
@@ -359,15 +443,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _getFirstName(String? fullName) {
-    if (fullName == null || fullName.isEmpty) return 'User';
+    // Fallback to Firebase Auth display name if UserService name is empty
+    if (fullName == null || fullName.isEmpty) {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final displayName = firebaseUser?.displayName ?? '';
+      print(
+          'DEBUG: UserService name is empty, FirebaseAuth displayName: "$displayName"');
+      if (displayName.isNotEmpty) {
+        return displayName.split(' ')[0];
+      }
+      return 'User';
+    }
+    print('DEBUG: Using UserService name: "$fullName"');
     return fullName.split(' ')[0];
   }
 
   void _showChatModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const ChatModal(),
-    );
+    if (!mounted) return;
+
+    try {
+      showDialog(
+        context: context,
+        builder: (context) => const ChatModal(),
+      );
+    } catch (e) {
+      print('DashboardScreen: Error showing chat modal: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening chat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -400,34 +509,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Consumer<AuthService>(
-                                builder: (context, authService, child) {
-                                  return FutureBuilder<DocumentSnapshot>(
-                                    future: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .doc(authService.user?.uid)
-                                        .get(),
-                                    builder: (context, snapshot) {
-                                      String firstName = 'User';
-                                      if (snapshot.hasData &&
-                                          snapshot.data != null) {
-                                        final userData = snapshot.data!.data()
-                                            as Map<String, dynamic>?;
-                                        if (userData != null &&
-                                            userData['name'] != null) {
-                                          firstName =
-                                              _getFirstName(userData['name']);
-                                        }
-                                      }
-                                      return Text(
-                                        'Hi, $firstName',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.darkGreen,
-                                        ),
-                                      );
-                                    },
+                              Consumer<UserService>(
+                                builder: (context, userService, child) {
+                                  final firstName = _getFirstName(
+                                      userService.currentUser?.name ?? '');
+                                  return Text(
+                                    'Hi, $firstName',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.darkGreen,
+                                    ),
                                   );
                                 },
                               ),
@@ -480,6 +572,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
+
+                    // Trial banner for active trials
+                    const TrialBanner(),
 
                     // Wallet Balance Text
                     Padding(
