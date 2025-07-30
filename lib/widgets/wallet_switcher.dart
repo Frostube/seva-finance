@@ -89,7 +89,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                         ),
                         trailing: widget.selectedWallet?.id == wallet.id
                             ? const Icon(
-                                CupertinoIcons.checkmark_circle_fill,
+                                Icons.check_circle,
                                 color: Color(0xFF1B4332),
                               )
                             : null,
@@ -112,7 +112,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
-                                CupertinoIcons.plus,
+                                Icons.add,
                                 color: Color(0xFF1B4332),
                               ),
                             ),
@@ -128,7 +128,8 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const LinkedCardsScreen(),
+                                  builder: (context) =>
+                                      const LinkedCardsScreen(),
                                 ),
                               );
                             },
@@ -141,7 +142,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
-                                CupertinoIcons.settings,
+                                Icons.settings,
                                 color: Color(0xFF1B4332),
                               ),
                             ),
@@ -157,7 +158,8 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const LinkedCardsScreen(),
+                                  builder: (context) =>
+                                      const LinkedCardsScreen(),
                                 ),
                               );
                             },
@@ -205,7 +207,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
               ),
             ] else ...[
               const Icon(
-                CupertinoIcons.question_circle,
+                Icons.help_outline,
                 color: Color(0xFF1B4332),
                 size: 16,
               ),
@@ -221,7 +223,7 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
             ],
             const SizedBox(width: 4),
             const Icon(
-              CupertinoIcons.chevron_down,
+              Icons.keyboard_arrow_down,
               color: Color(0xFF1B4332),
               size: 14,
             ),
@@ -230,4 +232,4 @@ class _WalletSwitcherState extends State<WalletSwitcher> {
       ),
     );
   }
-} 
+}

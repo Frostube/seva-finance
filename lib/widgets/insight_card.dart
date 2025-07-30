@@ -33,7 +33,7 @@ class InsightCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(
-          CupertinoIcons.delete,
+          Icons.delete_outline,
           color: Colors.white,
           size: 24,
         ),
@@ -74,7 +74,7 @@ class InsightCard extends StatelessWidget {
                           12), // SevaFinance standard radius
                     ),
                     child: Icon(
-                      _getInsightIcon(),
+                      _getIconForInsightType(insight.type),
                       color: _getPriorityColor(),
                       size: 24, // SevaFinance standard icon size
                     ),
@@ -171,7 +171,9 @@ class InsightCard extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: onTap,
-                        icon: Icon(_getPrimaryActionIcon(), size: 16),
+                        icon: Icon(
+                            _getIconForInsightAction(_getPrimaryActionLabel()),
+                            size: 16),
                         label: Text(
                           _getPrimaryActionLabel(),
                           style: GoogleFonts.inter(
@@ -199,7 +201,7 @@ class InsightCard extends StatelessWidget {
                       IconButton(
                         onPressed: onTap,
                         icon: Icon(
-                          CupertinoIcons.checkmark_circle,
+                          Icons.check_circle_outline,
                           color: const Color(
                               0xFF757575), // SevaFinance secondary color
                           size: 20,
@@ -217,7 +219,7 @@ class InsightCard extends StatelessWidget {
                     IconButton(
                       onPressed: onDismiss,
                       icon: Icon(
-                        CupertinoIcons.ellipsis,
+                        Icons.more_vert,
                         color: const Color(
                             0xFF757575), // SevaFinance secondary color
                         size: 18,
@@ -245,9 +247,9 @@ class InsightCard extends StatelessWidget {
   Color _getPriorityColor() {
     switch (insight.priority) {
       case InsightPriority.critical:
-        return const Color(0xFFE53E3E); // SevaFinance red
+        return Colors.red;
       case InsightPriority.high:
-        return const Color(0xFFFF8A00); // SevaFinance orange
+        return Colors.orange;
       case InsightPriority.medium:
         return const Color(0xFF1B4332); // SevaFinance primary green
       case InsightPriority.low:
@@ -260,24 +262,73 @@ class InsightCard extends StatelessWidget {
     return _getPriorityColor().withOpacity(0.3);
   }
 
-  IconData _getInsightIcon() {
+  IconData _getIconForInsightType(InsightType type) {
+    switch (type) {
+      case InsightType.overspend:
+        return Icons.warning_amber_outlined;
+      case InsightType.forecastBalance:
+        return Icons.insights_outlined;
+      case InsightType.categoryTrend:
+        return Icons.bar_chart;
+      case InsightType.budgetAlert:
+        return Icons.notifications_active_outlined;
+      case InsightType.savingOpportunity:
+        return Icons.savings_outlined;
+      case InsightType.unusualSpending:
+        return Icons.trending_up;
+      case InsightType.monthlyComparison:
+        return Icons.calendar_today_outlined;
+      case InsightType.overspend: // Corrected from largeExpense to overspend
+        return Icons.money_off_csred_outlined;
+      case InsightType.general:
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  String _getPrimaryActionLabel() {
+    // Removed check for insight.actionText as it's not part of the Insight model
     switch (insight.type) {
       case InsightType.overspend:
-        return CupertinoIcons.exclamationmark_triangle;
-      case InsightType.forecastBalance:
-        return CupertinoIcons.graph_circle;
       case InsightType.categoryTrend:
-        return CupertinoIcons.chart_bar;
+        return 'Review Budget';
       case InsightType.budgetAlert:
-        return CupertinoIcons.bell;
-      case InsightType.savingOpportunity:
-        return CupertinoIcons.money_dollar_circle;
-      case InsightType.unusualSpending:
-        return CupertinoIcons.eye;
+        return 'Set Alert';
+      case InsightType.forecastBalance:
+        return 'View Details';
       case InsightType.monthlyComparison:
-        return CupertinoIcons.calendar;
-      case InsightType.general:
-        return CupertinoIcons.info_circle;
+        return 'View Report';
+      case InsightType.savingOpportunity:
+        return 'Set Goal';
+      case InsightType.unusualSpending:
+        return 'View Transactions';
+      case InsightType.overspend: // Corrected from largeExpense to overspend
+        return 'View Expense';
+      default:
+        return 'Learn More';
+    }
+  }
+
+  IconData _getIconForInsightAction(String action) {
+    switch (action) {
+      case 'Review Budget':
+        return Icons.tune;
+      case 'Set Alert':
+        return Icons.notifications_none;
+      case 'View Details':
+        return Icons.list_alt;
+      case 'View Report':
+        return Icons.bar_chart;
+      case 'Set Goal':
+        return Icons.add_circle_outline;
+      case 'View Transactions':
+        return Icons.search;
+      case 'View Expense':
+        return Icons.receipt_long;
+      case 'Learn More':
+        return Icons.arrow_forward;
+      default:
+        return Icons.info_outline;
     }
   }
 
@@ -346,42 +397,6 @@ class InsightCard extends StatelessWidget {
         return insight.text.length > 50
             ? '${insight.text.substring(0, 50)}...'
             : insight.text;
-    }
-  }
-
-  String _getPrimaryActionLabel() {
-    switch (insight.type) {
-      case InsightType.overspend:
-      case InsightType.categoryTrend:
-        return 'Set Budget';
-      case InsightType.budgetAlert:
-        return 'Create Budget';
-      case InsightType.forecastBalance:
-        return 'Set Alert';
-      case InsightType.monthlyComparison:
-        return 'Review Spending';
-      case InsightType.savingOpportunity:
-        return 'Set Alert';
-      default:
-        return 'Take Action';
-    }
-  }
-
-  IconData _getPrimaryActionIcon() {
-    switch (insight.type) {
-      case InsightType.overspend:
-      case InsightType.categoryTrend:
-        return CupertinoIcons.slider_horizontal_3;
-      case InsightType.budgetAlert:
-        return CupertinoIcons.plus_circle;
-      case InsightType.forecastBalance:
-        return CupertinoIcons.bell;
-      case InsightType.monthlyComparison:
-        return CupertinoIcons.list_bullet;
-      case InsightType.savingOpportunity:
-        return CupertinoIcons.bell;
-      default:
-        return CupertinoIcons.arrow_right;
     }
   }
 }

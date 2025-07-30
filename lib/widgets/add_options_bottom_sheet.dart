@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../screens/add_expense_screen.dart';
 import '../screens/ocr_screen.dart'; // Corrected import
@@ -24,15 +23,16 @@ class AddOptionsBottomSheet extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 24.0),
-          _buildOption(context, LucideIcons.wallet, 'Add Expense', () {
+          _buildOption(
+              context, Icons.account_balance_wallet_outlined, 'Add Expense',
+              () {
             Navigator.pop(context); // Close the bottom sheet
             Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (context) => AddExpenseScreen(
                           expenseService: Provider.of(context, listen: false),
-                          onExpenseAdded:
-                              () {}, // Corrected to match Function() signature
+                          onExpenseAdded: () {},
                         )));
           }),
           const SizedBox(height: 16.0),
@@ -85,7 +85,7 @@ class AddOptionsBottomSheet extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Icon(LucideIcons.chevronRight,
+            Icon(Icons.chevron_right,
                 color: Theme.of(context).textTheme.headlineMedium?.color,
                 size: 24.0),
           ],

@@ -64,6 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<CoachTip> _coachTips = []; // List to hold coach tips
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _hasInitializationError = false; // New state for initialization errors
 
   @override
   void initState() {
@@ -166,6 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         setState(() {
           _isScreenLoading = false;
+          _hasInitializationError = true; // Set error state
         });
         // Show error to user
         ScaffoldMessenger.of(context).showSnackBar(
@@ -568,6 +570,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.white,
         body:
             Center(child: CircularProgressIndicator(color: AppTheme.darkGreen)),
+      );
+    }
+
+    if (_hasInitializationError) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load data.',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please check your internet connection and try again.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isScreenLoading = true; // Show loading indicator again
+                    _hasInitializationError = false; // Reset error state
+                  });
+                  _initializeAsyncDependencies(); // Retry initialization
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.darkGreen,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Retry',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 

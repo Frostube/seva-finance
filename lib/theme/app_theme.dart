@@ -4,15 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 /// App-wide theme configuration
 class AppTheme {
   // Color palette definition
-  static const primaryGreen =
-      Color(0xFF388E3C); // Main brand color - Darkened for better contrast
-  static const lightGreen =
-      Color(0xFFC8E6C9); // Used for backgrounds - Adjusted for better contrast
-  static const paleGreen = Color(
-      0xFFE8F5E9); // Lighter background color - Adjusted for better contrast
-  static const darkGreen = Color(0xFF1B5E20); // Used for text and buttons
-  static const darkerGreen = Color(
-      0xFF004D40); // Used for pressed states - Darkened for better contrast
+
+  static const primaryGreen = Color(0xFF4CAF50);    // Main brand color
+  static const lightGreen = Color(0xFFB1EC6E);      // Used for backgrounds
+  static const paleGreen = Color(0xFFB1EC6E);       // Lighter background color
+  static const darkGreen = Color(0xFF154517);       // Used for text and buttons
+  static const darkerGreen = Color(0xFF1B5E20);     // Used for pressed states
   static const backgroundColor = Color(0xFFFFFFFF); // White background
   static const textColor = Color(0xFF1A1A1A); // Nearly black text
   static const secondaryTextColor =

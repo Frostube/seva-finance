@@ -127,6 +127,9 @@ enum InsightType {
 
   @HiveField(7)
   general,
+
+  @HiveField(8) // Add new field
+  largeExpense,
 }
 
 @HiveType(typeId: 23)

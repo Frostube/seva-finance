@@ -120,10 +120,11 @@ class _MainScreenState extends State<MainScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, LucideIcons.home, 'Home'),
-                    _buildNavItem(1, LucideIcons.circleDollarSign, 'Budget'),
-                    _buildNavItem(2, LucideIcons.lightbulb, 'Insights'),
-                    _buildNavItem(3, LucideIcons.userCircle, 'Profile'),
+                    _buildNavItem(0, Icons.home_outlined, 'Home'),
+                    _buildNavItem(
+                        1, Icons.account_balance_wallet_outlined, 'Budget'),
+                    _buildNavItem(2, Icons.lightbulb_outline, 'Insights'),
+                    _buildNavItem(3, Icons.person_outline, 'Profile'),
                   ],
                 ),
               ),
@@ -134,8 +135,7 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () => _showAddOptions(context),
               backgroundColor: const Color(0xFF1B4332),
               shape: const CircleBorder(),
-              child:
-                  const Icon(LucideIcons.plus, color: Colors.white, size: 32),
+              child: const Icon(Icons.add, color: Colors.white, size: 32),
             ),
           ),
         );

@@ -78,7 +78,7 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(CupertinoIcons.xmark),
+                  icon: const Icon(Icons.close),
                   padding: const EdgeInsets.all(4),
                   constraints:
                       const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -103,7 +103,7 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          CupertinoIcons.doc_text,
+                          Icons.description,
                           size: 48,
                           color: Colors.grey[400],
                         ),
@@ -295,7 +295,7 @@ class _TemplatePickerModalState extends State<TemplatePickerModal> {
                   ),
                 ),
                 const Icon(
-                  CupertinoIcons.arrow_right,
+                  Icons.arrow_forward,
                   size: 16,
                   color: Color(0xFF1B4332),
                 ),

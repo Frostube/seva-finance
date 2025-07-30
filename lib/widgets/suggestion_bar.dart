@@ -45,7 +45,17 @@ class SuggestionBar extends StatelessWidget {
     }
 
     if (suggestions.isEmpty) {
-      return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.all(12),
+        alignment: Alignment.center,
+        child: Text(
+          'No suggestions right now.',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
     }
 
     return Container(
@@ -64,7 +74,7 @@ class SuggestionBar extends StatelessWidget {
           Row(
             children: [
               Icon(
-                CupertinoIcons.sparkles,
+                Icons.lightbulb_outline,
                 size: 16,
                 color: AppColors.primary,
               ),
@@ -134,7 +144,7 @@ class SuggestionBar extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Icon(
-              CupertinoIcons.arrow_right_circle_fill,
+              Icons.arrow_right_alt,
               size: 14,
               color: AppColors.primary.withOpacity(0.7),
             ),
