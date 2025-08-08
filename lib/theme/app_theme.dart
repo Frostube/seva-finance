@@ -53,14 +53,13 @@ class AppTheme {
 
   // Main theme configuration
   static ThemeData theme(BuildContext context) => ThemeData(
+        useMaterial3: true,
         primaryColor: primaryGreen,
         scaffoldBackgroundColor: backgroundColor,
-        // Color scheme configuration
-        colorScheme: const ColorScheme.light(
-          primary: primaryGreen,
-          secondary: lightGreen,
-          surface: backgroundColor,
-          onPrimary: Colors.white,
+        // Color scheme configuration using a seeded scheme for easier theming
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryGreen,
+          brightness: Brightness.light,
         ),
         // Text theme configuration
         textTheme: TextTheme(
@@ -83,6 +82,10 @@ class AppTheme {
             ),
             // Subtle elevation
             elevation: WidgetStateProperty.all(2),
+            // Additional padding for better tap targets on larger screens
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            ),
             // Background color with press state
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.pressed)) {
@@ -106,13 +109,12 @@ class AppTheme {
       );
 
   static ThemeData darkTheme(BuildContext context) => ThemeData(
+        useMaterial3: true,
         primaryColor: darkPrimaryGreen,
         scaffoldBackgroundColor: darkBackgroundColor,
-        colorScheme: const ColorScheme.dark(
-          primary: darkPrimaryGreen,
-          secondary: darkLightGreen,
-          surface: darkBackgroundColor,
-          onPrimary: darkTextColor,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: darkPrimaryGreen,
+          brightness: Brightness.dark,
         ),
         textTheme: TextTheme(
           headlineLarge: headlineLarge(context).copyWith(color: darkTextColor),
@@ -131,6 +133,9 @@ class AppTheme {
               ),
             ),
             elevation: WidgetStateProperty.all(2),
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            ),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.pressed)) {
                 return darkDarkerGreen;
