@@ -26,7 +26,7 @@ import '../widgets/loading_widget.dart';
 import '../models/budget_template.dart';
 import '../models/template_item.dart';
 import 'budget_creation_screen.dart';
-import 'ocr_screen.dart'; // Added for OCR screen navigation
+// import 'ocr_screen.dart'; // Removed: Scan Receipt moved to global + menu
 import 'import_screen.dart';
 import 'export_screen.dart';
 import '../services/coach_service.dart';
@@ -368,10 +368,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
   }
 
-  bool _isCurrentMonth() {
-    final now = DateTime.now();
-    return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
-  }
+  // bool _isCurrentMonth() {
+  //   final now = DateTime.now();
+  //   return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
+  // }
 
   void _refreshScreen() {
     setState(() {
@@ -1658,8 +1658,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       ),
                       // END New "Expense" Card
 
-                      const SizedBox(
-                          height: 80), // Added smaller SizedBox for FAB spacing
+                      const SizedBox(height: 24),
                     ],
                   ),
                 );
@@ -1668,58 +1667,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           },
         ),
       ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF40916C),
-              Color(0xFF1B4332),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1B4332).withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          heroTag: 'scan_receipt',
-          onPressed: () async {
-            // Navigate to OcrScreen and handle result
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const OcrScreen()),
-            );
-            // If expense was saved, refresh the screen
-            if (result == true) {
-              _refreshScreen();
-            }
-          },
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          label: const Row(
-            children: [
-              Icon(CupertinoIcons.camera_fill, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text(
-                'Scan Receipt',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      // Removed Scan Receipt FAB (moved to global + menu)
     );
   }
 

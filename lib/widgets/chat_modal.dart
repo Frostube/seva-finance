@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/chat_service.dart';
-import '../theme/colors.dart';
 import '../theme/app_theme.dart';
 import 'chat_bubble.dart';
 
@@ -74,7 +73,10 @@ class _ChatModalState extends State<ChatModal> {
         child: Column(
           children: [
             // Header
-            Container(
+            Semantics(
+              label: 'Ask Seva AI header',
+              container: true,
+              child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -132,8 +134,10 @@ class _ChatModalState extends State<ChatModal> {
                       color: Colors.white,
                       size: 20,
                     ),
+                      tooltip: 'Close',
                   ),
                 ],
+                ),
               ),
             ),
 
@@ -210,7 +214,9 @@ class _ChatModalState extends State<ChatModal> {
             const SizedBox(height: 8),
 
             // Input Area
-            Container(
+            SafeArea(
+              top: false,
+              child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.paleGreen.withOpacity(0.1),
@@ -268,10 +274,12 @@ class _ChatModalState extends State<ChatModal> {
                             size: 16,
                           ),
                         ),
+                          tooltip: chatService.isLoading ? 'Sending disabled' : 'Send message',
                       );
                     },
                   ),
                 ],
+                ),
               ),
             ),
           ],

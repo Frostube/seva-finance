@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'dashboard_screen.dart';
 import 'expenses_screen.dart';
@@ -32,12 +31,7 @@ class _MainScreenState extends State<MainScreen> {
     const ProfileScreen(),
   ];
 
-  final List<String> _navLabels = [
-    'Home',
-    'Budget',
-    'Insights',
-    'Profile',
-  ];
+  // Removed unused _navLabels; BottomNavigationBar provides labels
 
   @override
   void initState() {
@@ -98,33 +92,48 @@ class _MainScreenState extends State<MainScreen> {
               index: _currentIndex,
               children: _screens,
             ),
-            bottomNavigationBar: Container(
-              height: 85,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 8,
-                  bottom: 16,
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(0, Icons.home_outlined, 'Home'),
-                    _buildNavItem(
-                        1, Icons.account_balance_wallet_outlined, 'Budget'),
-                    _buildNavItem(2, Icons.lightbulb_outline, 'Insights'),
-                    _buildNavItem(3, Icons.person_outline, 'Profile'),
+                child: BottomNavigationBar(
+                  currentIndex: _currentIndex,
+                  onTap: _onNavigate,
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.white,
+                  selectedItemColor: const Color(0xFF1B4332),
+                  unselectedItemColor: Colors.grey[400],
+                  showUnselectedLabels: true,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home_outlined),
+                      label: 'Home',
+                      tooltip: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.account_balance_wallet_outlined),
+                      label: 'Budget',
+                      tooltip: 'Budget',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.lightbulb_outline),
+                      label: 'Insights',
+                      tooltip: 'Insights',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person_outline),
+                      label: 'Profile',
+                      tooltip: 'Profile',
+                    ),
                   ],
                 ),
               ),
@@ -135,6 +144,7 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () => _showAddOptions(context),
               backgroundColor: const Color(0xFF1B4332),
               shape: const CircleBorder(),
+              tooltip: 'Add',
               child: const Icon(Icons.add, color: Colors.white, size: 32),
             ),
           ),
@@ -143,42 +153,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () => _onNavigate(index),
-      child: Tooltip(
-        message: label,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFE9F1EC) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
-                size: 24,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color:
-                      isSelected ? const Color(0xFF1B4332) : Colors.grey[400],
-                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  
 
   void _showAddOptions(BuildContext context) {
     showModalBottomSheet(
@@ -228,12 +203,12 @@ class _MainScreenState extends State<MainScreen> {
         },
       ),
       TourStep(
-        stepName: 'scan_receipt',
-        title: 'Scan Receipt',
+        stepName: 'quick_add',
+        title: 'Quick Add',
         description:
-            'Here\'s the scan receipt button! Snap a photo of your receipt and let Seva Finance automatically extract the expense details for you.',
-        targetRect: _getScanButtonRect(context),
-        onStepAction: null, // Stay on expenses screen
+            'Use the + button to quickly add expenses, scan receipts, and more.',
+        targetRect: _getAddFabRect(context),
+        onStepAction: null, // Stay on current screen
       ),
     ];
   }
@@ -284,15 +259,13 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Rect _getScanButtonRect(BuildContext context) {
-    // Target the floating action button area in expenses screen
+  Rect _getAddFabRect(BuildContext context) {
+    // Target the center-docked global + FAB
     final screenSize = MediaQuery.of(context).size;
-    return Rect.fromLTWH(
-      screenSize.width - 150, // Right side of screen
-      screenSize.height - 150, // Bottom area
-      140, // Width of extended FAB
-      56, // Height of FAB
-    );
+    const double fabDiameter = 56;
+    final double left = (screenSize.width - fabDiameter) / 2;
+    final double top = screenSize.height - 85 - fabDiameter; // above bottom nav
+    return Rect.fromLTWH(left, top, fabDiameter, fabDiameter);
   }
 
   // Removed unused floating action button methods since they're now in expenses screen

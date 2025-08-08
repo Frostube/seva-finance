@@ -858,6 +858,7 @@ class _InsightsScreenState extends State<InsightsScreen>
         // Fallback if route doesn't exist - navigate to expenses screen
         Navigator.pop(context);
         Navigator.pushNamed(context, '/expenses');
+        return null;
       });
     } else {
       // Navigate to budget screen for low forecasts
@@ -865,6 +866,7 @@ class _InsightsScreenState extends State<InsightsScreen>
         // Fallback if route doesn't exist - navigate to expenses screen
         Navigator.pop(context);
         Navigator.pushNamed(context, '/expenses');
+        return null;
       });
     }
   }
@@ -887,6 +889,8 @@ class _InsightsScreenState extends State<InsightsScreen>
         return 'Monthly Comparison';
       case InsightType.general:
         return 'General';
+      case InsightType.largeExpense:
+        return 'Large Expense';
     }
   }
 }

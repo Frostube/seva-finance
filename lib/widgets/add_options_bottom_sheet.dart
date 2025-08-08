@@ -9,61 +9,71 @@ class AddOptionsBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24.0)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Add New',
-            style: Theme.of(context).textTheme.headlineMedium,
+    return SafeArea(
+      top: false,
+      child: Semantics(
+        container: true,
+        label: 'Add new options',
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24.0)),
           ),
-          const SizedBox(height: 24.0),
-          _buildOption(
-              context, Icons.account_balance_wallet_outlined, 'Add Expense',
-              () {
-            Navigator.pop(context); // Close the bottom sheet
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => AddExpenseScreen(
-                          expenseService: Provider.of(context, listen: false),
-                          onExpenseAdded: () {},
-                        )));
-          }),
-          const SizedBox(height: 16.0),
-          _buildOption(context, Icons.camera_alt, 'Scan Receipt', () {
-            Navigator.pop(context); // Close the bottom sheet
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const OcrScreen())); // Corrected class name
-          }),
-          const SizedBox(height: 24.0),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 16.0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Add New',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
+              const SizedBox(height: 24.0),
+              _buildOption(
+                  context, Icons.account_balance_wallet_outlined, 'Add Expense',
+                  () {
+                Navigator.pop(context); // Close the bottom sheet
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => AddExpenseScreen(
+                              expenseService:
+                                  Provider.of(context, listen: false),
+                              onExpenseAdded: () {},
+                            )));
+              }),
+              const SizedBox(height: 16.0),
+              _buildOption(context, Icons.camera_alt, 'Scan Receipt', () {
+                Navigator.pop(context); // Close the bottom sheet
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const OcrScreen())); // Corrected class name
+              }),
+              const SizedBox(height: 24.0),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    fontSize: 16.0,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildOption(
       BuildContext context, IconData icon, String title, VoidCallback onTap) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12.0),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
         decoration: BoxDecoration(

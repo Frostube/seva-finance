@@ -87,6 +87,8 @@ class InsightTypeAdapter extends TypeAdapter<InsightType> {
         return InsightType.monthlyComparison;
       case 7:
         return InsightType.general;
+      case 8:
+        return InsightType.largeExpense;
       default:
         return InsightType.overspend;
     }
@@ -118,6 +120,9 @@ class InsightTypeAdapter extends TypeAdapter<InsightType> {
         break;
       case InsightType.general:
         writer.writeByte(7);
+        break;
+      case InsightType.largeExpense:
+        writer.writeByte(8);
         break;
     }
   }

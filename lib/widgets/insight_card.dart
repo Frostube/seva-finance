@@ -278,10 +278,9 @@ class InsightCard extends StatelessWidget {
         return Icons.trending_up;
       case InsightType.monthlyComparison:
         return Icons.calendar_today_outlined;
-      case InsightType.overspend: // Corrected from largeExpense to overspend
-        return Icons.money_off_csred_outlined;
+      case InsightType.largeExpense:
+        return Icons.attach_money;
       case InsightType.general:
-      default:
         return Icons.info_outline;
     }
   }
@@ -302,7 +301,7 @@ class InsightCard extends StatelessWidget {
         return 'Set Goal';
       case InsightType.unusualSpending:
         return 'View Transactions';
-      case InsightType.overspend: // Corrected from largeExpense to overspend
+      case InsightType.largeExpense:
         return 'View Expense';
       default:
         return 'Learn More';
@@ -350,6 +349,8 @@ class InsightCard extends StatelessWidget {
         return 'Monthly Comparison';
       case InsightType.general:
         return 'Insight';
+      case InsightType.largeExpense:
+        return 'Large Expense';
     }
   }
 
@@ -375,6 +376,8 @@ class InsightCard extends StatelessWidget {
         return '\$${insight.value!.toStringAsFixed(2)}/day';
       case InsightType.general:
         return insight.value!.toStringAsFixed(2);
+      case InsightType.largeExpense:
+        return '\$${insight.value!.toStringAsFixed(2)}';
     }
   }
 
@@ -393,6 +396,8 @@ class InsightCard extends StatelessWidget {
         return 'Saved \$${insight.value?.toStringAsFixed(2)} vs last month';
       case InsightType.unusualSpending:
         return 'Daily spend above 30-day average';
+      case InsightType.largeExpense:
+        return 'Large expense detected';
       default:
         return insight.text.length > 50
             ? '${insight.text.substring(0, 50)}...'

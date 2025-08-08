@@ -16,19 +16,19 @@ import 'set_spending_alert_sheet.dart';
 import 'goals_and_alerts_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:hive/hive.dart';
+// import 'package:hive/hive.dart'; // duplicate
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import 'package:seva_finance/widgets/expense_tile.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
+// import '../services/auth_service.dart';
 import '../services/category_service.dart';
 import '../services/savings_goal_service.dart';
 import '../widgets/forecast_banner.dart';
-import '../widgets/help_icon.dart';
+// import '../widgets/help_icon.dart';
 import '../widgets/chat_modal.dart';
-import '../services/chat_service.dart';
+// import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../widgets/trial_banner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -37,8 +37,8 @@ import 'package:hive/hive.dart';
 import 'package:dots_indicator/dots_indicator.dart'; // Import for dots indicator
 import '../services/coach_service.dart'; // Import CoachService
 import '../widgets/coach_card.dart'; // Import CoachCard
-import '../services/feature_gate_service.dart'; // Import FeatureGateService
-import '../services/subscription_service.dart'; // Import SubscriptionService
+// import '../services/feature_gate_service.dart'; // Import FeatureGateService
+// import '../services/subscription_service.dart'; // Import SubscriptionService
 import 'expenses_screen.dart'; // For expenses screen
 import 'add_budget_screen.dart'; // For budgets screen
 import 'insights_screen.dart'; // For insights screen
@@ -526,19 +526,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _getFirstName(String? fullName) {
-    // Fallback to Firebase Auth display name if UserService name is empty
-    if (fullName == null || fullName.isEmpty) {
+    // Prefer provided name, then Firebase displayName, then first part of email
+    String candidate = (fullName ?? '').trim();
+    if (candidate.isEmpty) {
       final firebaseUser = FirebaseAuth.instance.currentUser;
-      final displayName = firebaseUser?.displayName ?? '';
-      print(
-          'DEBUG: UserService name is empty, FirebaseAuth displayName: "$displayName"');
-      if (displayName.isNotEmpty) {
-        return displayName.split(' ')[0];
+      candidate = (firebaseUser?.displayName ?? '').trim();
+      if (candidate.isEmpty) {
+        final email = (firebaseUser?.email ?? '').trim();
+        if (email.isNotEmpty) {
+          candidate = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
+        }
       }
-      return 'User';
     }
-    print('DEBUG: Using UserService name: "$fullName"');
-    return fullName.split(' ')[0];
+
+    if (candidate.isEmpty) return 'User';
+    final first = candidate.split(' ').first;
+    if (first.isEmpty) return 'User';
+    return first[0].toUpperCase() + first.substring(1);
   }
 
   void _showChatModal(BuildContext context) {
@@ -848,7 +852,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Column(
                         children: [
                           SizedBox(
-                            height: 120, // Height of the carousel
+                            height: 150, // Increased to prevent overflow for longer tips
                             child: PageView.builder(
                               controller: _pageController,
                               itemCount: _coachTips.length,

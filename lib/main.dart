@@ -222,20 +222,20 @@ class AuthWrapper extends StatelessWidget {
 }
 
 class MyApp extends StatelessWidget {
-  final Box<bool> themeBox;
-  final Box<bool> featureFlagBox;
-  const MyApp(
-      {super.key, required this.themeBox, required this.featureFlagBox});
+  final Box<bool>? themeBox;
+  final Box<bool>? featureFlagBox;
+  const MyApp({super.key, this.themeBox, this.featureFlagBox});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => ThemeProvider(themeBox),
+          create: (_) => ThemeProvider(themeBox ?? Hive.box<bool>('theme_settings')),
         ),
         ChangeNotifierProvider(
-          create: (_) => FeatureFlagService(featureFlagBox),
+          create: (_) =>
+              FeatureFlagService(featureFlagBox ?? Hive.box<bool>('feature_flags_box')),
         ),
         // Firebase Services
         Provider<FirebaseAuth>(

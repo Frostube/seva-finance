@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'account_screen.dart';
 import 'preferences_screen.dart';
 import 'linked_cards_screen.dart';
@@ -162,24 +162,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                         // Name
                         Consumer<UserService>(
                           builder: (context, userService, child) {
-                            final user = userService.currentUser;
-                            final firebaseUser =
-                                FirebaseAuth.instance.currentUser;
-
-                            // Use same fallback logic as Dashboard
-                            String displayName = user?.name ?? '';
-                            print(
-                                'DEBUG Profile: UserService name: "${user?.name}"');
+                            String displayName = (userService.currentUser?.name ?? '').trim();
+                            final firebaseUser = FirebaseAuth.instance.currentUser;
                             if (displayName.isEmpty) {
-                              displayName = firebaseUser?.displayName ?? '';
-                              print(
-                                  'DEBUG Profile: FirebaseAuth displayName: "$displayName"');
+                              displayName = (firebaseUser?.displayName ?? '').trim();
                             }
                             if (displayName.isEmpty) {
-                              displayName = 'User';
+                              final email = (userService.currentUser?.email ?? firebaseUser?.email ?? '').trim();
+                              if (email.isNotEmpty) {
+                                final local = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
+                                displayName = local.split(' ').map((p) => p.isEmpty ? p : p[0].toUpperCase() + p.substring(1)).join(' ');
+                              }
                             }
-                            print(
-                                'DEBUG Profile: Final displayName: "$displayName"');
+                            if (displayName.isEmpty) displayName = 'User';
 
                             return Text(
                               _isLoading ? 'Loading...' : displayName,

@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../services/user_service.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
   const PersonalDetailsScreen({super.key});
@@ -65,6 +67,22 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         'phone': _phoneController.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Also update local UserService cache so greetings reflect immediately
+      try {
+        final userService = Provider.of<UserService>(context, listen: false);
+        final current = userService.currentUser;
+        if (current != null) {
+          await userService.updateUser(
+            current.copyWith(
+              name: _nameController.text.trim(),
+              phone: _phoneController.text.trim(),
+            ),
+          );
+        }
+      } catch (_) {
+        // Silently ignore if provider not available in this context
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

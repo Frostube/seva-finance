@@ -24,6 +24,7 @@ class _CoachCardState extends State<CoachCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _isExpanded = false;
 
   @override
   void initState() {
@@ -88,6 +89,9 @@ class _CoachCardState extends State<CoachCard>
                 // Text content with "Tip:" prefix
                 Expanded(
                   child: RichText(
+                    maxLines: _isExpanded ? null : 3,
+                    overflow:
+                        _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
                     text: TextSpan(
                       children: [
                         TextSpan(
@@ -126,24 +130,43 @@ class _CoachCardState extends State<CoachCard>
                 ),
               ],
             ),
-            // Add Learn more button if onLearnMore is provided
-            if (widget.onLearnMore != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: TextButton(
-                  onPressed: widget.onLearnMore,
-                  child: Text(
-                    'Learn more',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppTheme.darkGreen,
-                      fontWeight: FontWeight.w600,
+            // See more / Learn more actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (widget.tip.message.length > 140)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    },
+                    child: Text(
+                      _isExpanded ? 'See less' : 'See more',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.darkGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+
+                if (widget.onLearnMore != null)
+                  TextButton(
+                    onPressed: widget.onLearnMore,
+                    child: Text(
+                      'Learn more',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.darkGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ],
         ),
       ),
