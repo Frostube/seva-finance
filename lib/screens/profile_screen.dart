@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
@@ -88,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 Icon(
-                  CupertinoIcons.chevron_right,
+                  Icons.chevron_right,
                   size: 16,
                   color: Colors.grey[400],
                 ),
@@ -196,13 +197,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                             final email =
                                 user?.email ?? firebaseUser?.email ?? '';
 
-                            return Text(
-                              _isLoading ? 'Loading...' : email,
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                              ),
-                            );
+                              return Text(
+                                _isLoading ? 'Loading...' : email,
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  color: Colors.grey[700],
+                                ),
+                              );
                           },
                         ),
                         const SizedBox(height: 4),
@@ -219,47 +220,49 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: Column(
                     children: [
                       _buildSettingsItem(
-                        icon: CupertinoIcons.person_fill,
+                        icon: Icons.person_outline,
                         title: 'Account',
                         onTap: () =>
                             _navigateWithFade(context, const AccountScreen()),
                       ),
                       _buildSettingsItem(
-                        icon: CupertinoIcons.creditcard_fill,
+                        icon: Icons.credit_card,
                         title: 'Linked Cards',
                         onTap: () => _navigateWithFade(
                             context, const LinkedCardsScreen()),
                       ),
                       _buildSettingsItem(
-                        icon: CupertinoIcons.slider_horizontal_3,
+                        icon: Icons.tune,
                         title: 'Preferences',
                         onTap: () => _navigateWithFade(
                             context, const PreferencesScreen()),
                       ),
                       _buildSettingsItem(
-                        icon: CupertinoIcons.question_circle_fill,
+                        icon: Icons.help_outline,
                         title: 'Help & FAQs',
                         onTap: () =>
                             _navigateWithFade(context, const HelpFAQsScreen()),
                       ),
                       _buildSettingsItem(
-                        icon: CupertinoIcons.paperplane_fill,
+                        icon: Icons.send_outlined,
                         title: 'Telegram Bot',
                         onTap: () {},
                       ),
                       // Debug options - only show in development
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.wrench_fill,
-                        title: 'Onboarding Debug',
-                        onTap: () => _navigateWithFade(
-                            context, const OnboardingDebugScreen()),
-                      ),
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.lightbulb_fill,
-                        title: 'Coach Service Debug',
-                        onTap: () => _navigateWithFade(
-                            context, const DebugCoachScreen()),
-                      ),
+                      if (kDebugMode)
+                        _buildSettingsItem(
+                          icon: Icons.build_outlined,
+                          title: 'Onboarding Debug',
+                          onTap: () => _navigateWithFade(
+                              context, const OnboardingDebugScreen()),
+                        ),
+                      if (kDebugMode)
+                        _buildSettingsItem(
+                          icon: Icons.lightbulb_outline,
+                          title: 'Coach Service Debug',
+                          onTap: () => _navigateWithFade(
+                              context, const DebugCoachScreen()),
+                        ),
                     ],
                   ),
                 ),

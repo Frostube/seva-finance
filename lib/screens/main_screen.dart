@@ -121,8 +121,8 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.account_balance_wallet_outlined),
-                      label: 'Budget',
-                      tooltip: 'Budget',
+                      label: 'Expenses',
+                      tooltip: 'Expenses',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.lightbulb_outline),
@@ -195,7 +195,7 @@ class _MainScreenState extends State<MainScreen> {
         stepName: 'expenses_navigation',
         title: 'Navigate to Expenses',
         description:
-            'Tap on the "Budget" tab to access your expenses screen where you can add expenses and scan receipts.',
+            'Tap on the "Expenses" tab to access your expenses screen where you can add expenses and scan receipts.',
         targetRect: _getExpensesTabRect(context),
         onStepAction: () {
           // Navigate to expenses screen when this step is shown

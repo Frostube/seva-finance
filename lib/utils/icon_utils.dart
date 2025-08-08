@@ -1,42 +1,54 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 class IconUtils {
-  /// Convert icon name string to CupertinoIcons IconData
+  /// Convert icon name string to Material Icons IconData (unified set)
   static IconData getIconFromName(String iconName) {
     switch (iconName.toLowerCase()) {
       case 'house_fill':
-        return CupertinoIcons.house_fill;
+      case 'house':
+        return Icons.home_filled;
       case 'cart_fill':
-        return CupertinoIcons.cart_fill;
+      case 'cart':
+        return Icons.shopping_cart;
       case 'car_fill':
-        return CupertinoIcons.car_fill;
+      case 'car':
+        return Icons.directions_car_filled;
       case 'film_fill':
-        return CupertinoIcons.film_fill;
+      case 'film':
+        return Icons.movie;
       case 'bag_fill':
-        return CupertinoIcons.bag_fill;
+      case 'bag':
+        return Icons.shopping_bag;
       case 'money_dollar_circle_fill':
-        return CupertinoIcons.money_dollar_circle_fill;
-      case 'book_fill':
-        return CupertinoIcons.book_fill;
-      case 'heart_fill':
-        return CupertinoIcons.heart_fill;
-      case 'briefcase_fill':
-        return CupertinoIcons.briefcase_fill;
-      case 'shield_fill':
-        return CupertinoIcons.shield_fill;
-      case 'doc_text_fill':
-        return CupertinoIcons.doc_text_fill;
-      case 'airplane':
-        return CupertinoIcons.airplane;
       case 'money_dollar_circle':
-        return CupertinoIcons.money_dollar_circle;
+      case 'money':
+        return Icons.attach_money;
+      case 'book_fill':
+      case 'book':
+        return Icons.menu_book;
+      case 'heart_fill':
+      case 'heart':
+        return Icons.favorite;
+      case 'briefcase_fill':
+      case 'briefcase':
+        return Icons.work;
+      case 'shield_fill':
+      case 'shield':
+        return Icons.shield;
+      case 'doc_text_fill':
+      case 'doc_text':
+      case 'doc':
+        return Icons.description;
+      case 'airplane':
+        return Icons.flight;
       case 'circle_fill':
-        return CupertinoIcons.circle_fill;
+      case 'circle':
+        return Icons.circle;
       case 'help_outline':
-        return CupertinoIcons.question_circle;
-      // Add more mappings as needed
+      case 'help':
+        return Icons.help_outline;
       default:
-        return CupertinoIcons.circle_fill;
+        return Icons.circle;
     }
   }
 

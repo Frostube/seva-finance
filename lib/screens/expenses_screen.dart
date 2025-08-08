@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart'; // For iOS-style icons
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/layout.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -71,14 +72,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   bool _isScreenInitialized = false; // Added for screen-level initialization
 
   final Map<String, IconData> _categoryIcons = {
-    'Rent': CupertinoIcons.house_fill,
-    'Groceries': CupertinoIcons.cart_fill,
-    'Transport': CupertinoIcons.car_fill,
-    'Shopping': CupertinoIcons.bag_fill,
-    'Entertainment': CupertinoIcons.film,
-    'Bills': CupertinoIcons.doc_text,
-    'Health': CupertinoIcons.heart,
-    'Other': CupertinoIcons.square_grid_2x2,
+    'Rent': Icons.home_filled,
+    'Groceries': Icons.shopping_cart,
+    'Transport': Icons.directions_car_filled,
+    'Shopping': Icons.shopping_bag,
+    'Entertainment': Icons.movie,
+    'Bills': Icons.description,
+    'Health': Icons.favorite,
+    'Other': Icons.grid_view,
   };
 
   @override
@@ -169,7 +170,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              CupertinoIcons.money_dollar_circle,
+              Icons.account_balance_wallet_outlined,
               size: 64,
               color: Color(0xFF1B4332),
             ),
@@ -187,7 +188,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 16,
-                color: Colors.grey[600],
+                color: Colors.grey[700],
                 height: 1.5,
               ),
             ),
@@ -227,8 +228,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(CupertinoIcons.plus_circle_fill,
-                      color: Colors.white),
+                    const Icon(Icons.add_circle, color: Colors.white),
                   const SizedBox(width: 12),
                   Text(
                     'Create Your First Wallet',
@@ -508,10 +508,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                   subtitle: Text(
                     'Quick budget setup',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                     style: GoogleFonts.inter(
+                       fontSize: 14,
+                       color: Colors.grey[700],
+                     ),
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -588,10 +588,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                   subtitle: Text(
                     'Upload CSV/Excel files',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                     style: GoogleFonts.inter(
+                       fontSize: 14,
+                       color: Colors.grey[700],
+                     ),
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -945,9 +945,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             // Debug and Add buttons
                             Row(
                               children: [
-                                // Debug button for coach tips (temporary)
-                                IconButton(
-                                  icon: const Icon(CupertinoIcons.lightbulb),
+                    // Debug button for coach tips (temporary - hide in release)
+                    if (kDebugMode)
+                      IconButton(
+                        icon: const Icon(Icons.lightbulb_outline),
                                   color: const Color(0xFF1B4332),
                                   iconSize: 24,
                                   onPressed: () async {
@@ -964,11 +965,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     } catch (e) {
                                       print('Error generating tips: $e');
                                     }
-                                  },
-                                ),
+                        },
+                      ),
                                 // Add button
                                 IconButton(
-                                  icon: const Icon(CupertinoIcons.plus_circle),
+                      icon: const Icon(Icons.add_circle_outline),
                                   color: const Color(0xFF1B4332),
                                   iconSize: 28,
                                   onPressed: _showAddOptions,
@@ -1038,9 +1039,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                                   _currentWeekTotal > 0) ...[
                                                 Icon(
                                                   _spendingTrend >= 0
-                                                      ? CupertinoIcons.arrow_up
-                                                      : CupertinoIcons
-                                                          .arrow_down,
+                                                      ? Icons.arrow_upward
+                                                      : Icons.arrow_downward,
                                                   color: _spendingTrend >= 0
                                                       ? const Color(0xFF34C759)
                                                       : Colors.red,
@@ -1363,7 +1363,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                             child: Text(
                                               'No spending data for chart.',
                                               style: GoogleFonts.inter(
-                                                  color: Colors.grey[600]),
+                                                  color: Colors.grey[700]),
                                             ),
                                           )
                                         : LineChart(
@@ -1624,7 +1624,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                         ),
                                         const SizedBox(width: 4),
                                         const Icon(
-                                          CupertinoIcons.arrow_right_circle,
+                                          Icons.arrow_circle_right_outlined,
                                           size: 16,
                                           color: Color(0xFF1B4332),
                                         ),
@@ -1644,7 +1644,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     'No expenses for ${DateFormat('MMMM').format(_selectedMonth)} yet.',
                                     style: GoogleFonts.inter(
                                       fontSize: 15,
-                                      color: Colors.grey[600],
+                                      color: Colors.grey[700],
                                     ),
                                   ),
                                 ),
@@ -1679,7 +1679,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       String categoryId, String categoryName, double amount) {
     final categoryIcon = _categoryIcons[categoryName] ??
         _categoryIcons['Other'] ??
-        CupertinoIcons.square_grid_2x2;
+        Icons.grid_view;
 
     return InkWell(
       onTap: () async {
