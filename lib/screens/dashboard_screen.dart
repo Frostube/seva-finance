@@ -1073,6 +1073,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ...entry.value
                     .take(3)
                     .map((expense) => ExpenseTile(expense: expense)),
+                const SizedBox(height: 8),
               ],
           ],
         );

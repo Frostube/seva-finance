@@ -44,40 +44,43 @@ class ExpenseTile extends StatelessWidget {
     final categoryService = Provider.of<CategoryService>(context, listen: false);
     final categoryName = categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _getCategoryIcon(categoryName),
+            color: AppColors.primary,
+          ),
         ),
-        child: Icon(
-          _getCategoryIcon(categoryName),
-          color: AppColors.primary,
+        title: Text(
+          categoryName,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-      title: Text(
-        categoryName,
-        style: const TextStyle(
-          fontWeight: FontWeight.w500,
+        subtitle: Text(
+          expense.note ?? '',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+          ),
         ),
-      ),
-      subtitle: Text(
-        expense.note ?? '',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-        ),
-      ),
-      trailing: Text(
-        currencyFormat.format(expense.amount),
-        style: TextStyle(
-          color: expense.amount < 0 ? Colors.red : Colors.green,
-          fontWeight: FontWeight.w600,
+        trailing: Text(
+          currencyFormat.format(expense.amount),
+          style: TextStyle(
+            color: expense.amount < 0 ? Colors.red : Colors.green,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
   }
-} 
+}
