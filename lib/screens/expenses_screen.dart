@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart'; // For iOS-style icons
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/layout.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'dart:async'; // For StreamSubscription
@@ -921,8 +922,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     children: [
                       // Clean header with logo and add button
                       Container(
-                        padding:
-                            const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 16.0),
+                        padding: EdgeInsets.fromLTRB(
+                            LayoutUtils.responsiveHorizontalPadding(context),
+                            24.0,
+                            LayoutUtils.responsiveHorizontalPadding(context),
+                            16.0),
                         color:
                             const Color(0xFFF8F9FA), // Match background color
                         child: Row(
@@ -977,30 +981,29 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
                       // My Spending Card - NEW
                       Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 20),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: _isMySpendingLoading
-                            ? const SizedBox(
-                                height: 100,
-                                child: CenterLoadingWidget(
-                                    showText:
-                                        false)) // Height matches approx card height
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 20),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: _isMySpendingLoading
+                              ? const SizedBox(
+                                  height: 100,
+                                  child: CenterLoadingWidget(showText: false),
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                   Text(
                                     'My Spending',
                                     style: GoogleFonts.inter(

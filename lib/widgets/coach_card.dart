@@ -59,13 +59,18 @@ class _CoachCardState extends State<CoachCard>
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, Colors.white.withOpacity(0.96)],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withOpacity(0.05)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -81,7 +86,7 @@ class _CoachCardState extends State<CoachCard>
                   padding: const EdgeInsets.only(top: 1),
                   child: Icon(
                     Icons.lightbulb_outline,
-                    color: const Color(0xFF4CAF50), // Green color
+                    color: AppTheme.darkGreen,
                     size: 18,
                   ),
                 ),
@@ -99,7 +104,7 @@ class _CoachCardState extends State<CoachCard>
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppTheme.darkGreen,
                             height: 1.3,
                           ),
                         ),
@@ -109,7 +114,7 @@ class _CoachCardState extends State<CoachCard>
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                             color: Colors.black87,
-                            height: 1.3,
+                            height: 1.4,
                           ),
                         ),
                       ],

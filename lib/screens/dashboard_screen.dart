@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/layout.dart';
 import '../theme/app_theme.dart';
-import '../theme/colors.dart';
+// import '../theme/colors.dart'; // Deprecated in favor of AppTheme / ColorScheme
 import 'linked_cards_screen.dart';
 import 'notifications_screen.dart';
 import '../services/wallet_service.dart';
@@ -32,7 +33,7 @@ import '../widgets/chat_modal.dart';
 import '../services/user_service.dart';
 import '../widgets/trial_banner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/suggestion_bar.dart'; // Added import
+// import '../widgets/suggestion_bar.dart';
 import 'package:hive/hive.dart';
 import 'package:dots_indicator/dots_indicator.dart'; // Import for dots indicator
 import '../services/coach_service.dart'; // Import CoachService
@@ -57,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late ExpenseService _expenseService;
   late CategoryService _categoryService;
   List<Wallet> _wallets = [];
+  String? _cachedFirstName; // Fallback from Firestore
   late StreamSubscription<BoxEvent> _walletBoxSubscription;
   bool _isScreenLoading = true;
   bool _showChatButton = false; // New state variable
@@ -65,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _hasInitializationError = false; // New state for initialization errors
+  Timer? _tipsAutoPlayTimer; // Auto-advance timer for coach tips
 
   @override
   void initState() {
@@ -139,6 +142,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (!mounted) return;
 
+      // Fetch name from Firestore as a fallback so greeting uses actual profile name
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+          final fullName = (doc.data()?['name'] as String?)?.trim() ?? '';
+          if (fullName.isNotEmpty && mounted) {
+            setState(() {
+              _cachedFirstName = _extractFirstName(fullName);
+            });
+          }
+        }
+      } catch (e) {
+        print('DashboardScreen: Failed to fetch name fallback: $e');
+      }
+
       // Generate coach tips after all services are initialized
       final coachService = Provider.of<CoachService>(context, listen: false);
       final featureFlagService =
@@ -158,6 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _isScreenLoading = false;
           _coachTips = coachService.tips; // Load tips into local state
         });
+        _startTipsAutoPlay();
       }
 
       print(
@@ -184,6 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _walletBoxSubscription.cancel();
     _chatButtonTimer?.cancel(); // Cancel the timer when the widget is disposed
+    _tipsAutoPlayTimer?.cancel();
     _pageController.dispose(); // Dispose the PageController
     super.dispose();
   }
@@ -194,6 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _coachTips = coachService.tips; // Update list of tips from service
     });
+    _startTipsAutoPlay();
   }
 
   void _startChatButtonTimer() async {
@@ -227,11 +249,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _startTipsAutoPlay() {
+    _tipsAutoPlayTimer?.cancel();
+    if (_coachTips.length <= 1) return;
+    _tipsAutoPlayTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      final current = _pageController.hasClients
+          ? (_pageController.page?.round() ?? 0)
+          : 0;  // 5 seconds
+      final next = (current + 1) % _coachTips.length;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
   void _loadWallets() {
     if (!mounted) return;
 
     try {
       final wallets = _walletService.getAllWallets();
+      // Ensure primary wallet appears first
+      wallets.sort((a, b) {
+        if (a.isPrimary == b.isPrimary) return 0;
+        return a.isPrimary ? -1 : 1;
+      });
       if (mounted) {
         setState(() {
           _wallets = wallets;
@@ -280,42 +324,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: Stack(
           children: [
-            if (wallet.isPrimary)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        CupertinoIcons.star_fill,
-                        size: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Primary',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            // Removed overlay badge to avoid overlapping; show inline chip near name instead
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
@@ -330,12 +344,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      wallet.name,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        color: Colors.white.withOpacity(0.9),
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              wallet.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (wallet.isPrimary) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(CupertinoIcons.star_fill,
+                                      size: 12, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Primary',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -545,6 +596,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return first[0].toUpperCase() + first.substring(1);
   }
 
+  String _extractFirstName(String fullName) {
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return 'User';
+    final first = trimmed.split(' ').first;
+    return first.isEmpty ? 'User' : first[0].toUpperCase() + first.substring(1);
+  }
+
   void _showChatModal(BuildContext context) {
     if (!mounted) return;
 
@@ -651,7 +709,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     // Header with greeting and notification
                     Padding(
-                      padding: const EdgeInsets.all(24.0),
+                      padding: LayoutUtils.pagePadding(context, top: 24, bottom: 0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -660,8 +718,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Consumer<UserService>(
                                 builder: (context, userService, child) {
-                                  final firstName = _getFirstName(
-                                      userService.currentUser?.name ?? '');
+                                  // Prefer stored full name; avoid falling back to email here
+                                  final name = (userService.currentUser?.name ?? '').trim();
+                                  final firstName = name.isNotEmpty
+                                      ? _extractFirstName(name)
+                                      : (_cachedFirstName ?? _getFirstName(''));
                                   return Text(
                                     'Hi, $firstName',
                                     style: GoogleFonts.inter(
@@ -727,7 +788,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     // Wallet Balance Text
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: LayoutUtils.responsiveHorizontalPadding(context)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -761,8 +823,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     SizedBox(
                       height: 220, // Increased from 200 to accommodate buttons
                       child: ListView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: LayoutUtils.responsiveHorizontalPadding(context) - 8,
                           vertical: 16.0,
                         ),
                         scrollDirection: Axis.horizontal,
@@ -778,7 +840,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     // Quick Actions
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: LayoutUtils.responsiveHorizontalPadding(context)),
                       child: Row(
                         children: [
                           Expanded(
@@ -858,18 +921,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               itemCount: _coachTips.length,
                               itemBuilder: (context, index) {
                                 final tip = _coachTips[index];
-                                return CoachCard(
-                                  tip: tip,
-                                  onDismiss: () {
-                                    // Handle dismiss: remove from list and potentially mark as read
-                                    setState(() {
-                                      _coachTips.removeAt(index);
-                                    });
-                                  },
-                                  onLearnMore: tip.relatedScreen != null
-                                      ? () => _navigateToCoachRelatedScreen(
-                                          tip.relatedScreen!)
-                                      : null,
+                                return AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 350),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  child: CoachCard(
+                                    key: ValueKey(tip.id),
+                                    tip: tip,
+                                    onDismiss: () {
+                                      setState(() {
+                                        _coachTips.removeAt(index);
+                                      });
+                                    },
+                                    onLearnMore: tip.relatedScreen != null
+                                        ? () => _navigateToCoachRelatedScreen(
+                                            tip.relatedScreen!)
+                                        : null,
+                                  ),
                                 );
                               },
                             ),
@@ -894,25 +962,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
 
-                    // Suggestion Bar (conditionally displayed)
-                    Consumer<ExpenseService>(
-                      builder: (context, expenseService, child) {
-                        if (expenseService.hasAddedExpense) {
-                          return Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 24.0, vertical: 16.0),
-                            child: SuggestionBar(
-                              suggestions: const [], // Dummy empty list for now
-                              onSuggestionTap: (suggestion) {},
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
+                    // Suggestion Bar (hidden until real suggestions are available)
+                    const SizedBox.shrink(),
 
-                    // Recent Expenses Preview
-                    _buildRecentExpensesPreview(),
+                    // Recent Expenses Preview in a card for better grouping
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: LayoutUtils.responsiveHorizontalPadding(context) - 8,
+                          vertical: 8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0, vertical: 8.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Recent Expenses',
+                                      style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(fontWeight: FontWeight.w600) ??
+                                          const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const ExpensesScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text('View All'),
+                                    )
+                                  ],
+                                ),
+                              ),
+                              _buildRecentExpensesPreview(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
 
                     const SizedBox(
                         height: 0), // Removed fixed space that caused overflow
@@ -1033,12 +1144,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       future: _expenseService.getExpensesByTimeline(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text('No recent expenses'),
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+            child: Center(
+              child: Text('No recent expenses'),
+            ),
           );
         }
 
@@ -1046,33 +1163,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                'Recent Expenses',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             for (var entry in groupedExpenses.entries)
               if (entry.value.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
+                      horizontal: 12.0, vertical: 8.0),
                   child: Text(
                     entry.key,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        ) ??
+                        const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                 ),
                 ...entry.value
                     .take(3)
-                    .map((expense) => ExpenseTile(expense: expense)),
+                    .map((expense) => Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0, vertical: 4.0),
+                          child: ExpenseTile(expense: expense),
+                        )),
               ],
           ],
         );

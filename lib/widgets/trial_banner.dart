@@ -35,7 +35,7 @@ class TrialBanner extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: _getGradientColors(daysRemaining),
+              colors: _getBrandGradient(daysRemaining),
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -120,16 +120,15 @@ class TrialBanner extends StatelessWidget {
     );
   }
 
-  List<Color> _getGradientColors(int daysRemaining) {
+  List<Color> _getBrandGradient(int daysRemaining) {
+    // Keep brand greens; only add subtle red tint for last day
     if (daysRemaining <= 1) {
-      return [Colors.red[600]!, Colors.red[800]!];
-    } else if (daysRemaining <= 3) {
-      return [Colors.orange[600]!, Colors.orange[800]!];
-    } else if (daysRemaining <= 7) {
-      return [Colors.amber[600]!, Colors.amber[800]!];
-    } else {
-      return [Colors.blue[600]!, Colors.blue[800]!];
+      return [const Color(0xFF8B1D1D), const Color(0xFFB3261E)]; // critical
     }
+    if (daysRemaining <= 3) {
+      return [const Color(0xFF1B4332), const Color(0xFF2E7D32)];
+    }
+    return [const Color(0xFF1B4332), const Color(0xFF4CAF50)];
   }
 
   IconData _getIcon(int daysRemaining) {

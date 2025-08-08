@@ -53,20 +53,68 @@ class AppTheme {
 
   // Main theme configuration
   static ThemeData theme(BuildContext context) => ThemeData(
+        useMaterial3: true,
         primaryColor: primaryGreen,
         scaffoldBackgroundColor: backgroundColor,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          },
+        ),
         // Color scheme configuration
         colorScheme: const ColorScheme.light(
           primary: primaryGreen,
           secondary: lightGreen,
           surface: backgroundColor,
           onPrimary: Colors.white,
+          onSurface: textColor,
         ),
         // Text theme configuration
         textTheme: TextTheme(
           headlineLarge: headlineLarge(context),
           headlineMedium: headlineMedium(context),
           bodyLarge: bodyLarge(context),
+        ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          backgroundColor: backgroundColor,
+          foregroundColor: textColor,
+          centerTitle: false,
+        ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: backgroundColor,
+          selectedItemColor: darkGreen,
+          unselectedItemColor: secondaryTextColor,
+          selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500),
+          type: BottomNavigationBarType.fixed,
+        ),
+        cardTheme: CardTheme(
+          color: backgroundColor,
+          elevation: 1,
+          shadowColor: Colors.black.withOpacity(0.05),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        listTileTheme: const ListTileThemeData(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+          iconColor: darkGreen,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.9),
+          hintStyle: const TextStyle(color: secondaryTextColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: darkGreen, width: 1),
+          ),
         ),
         // Button theme configuration
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -94,31 +142,81 @@ class AppTheme {
             overlayColor: WidgetStateProperty.all(
               darkerGreen.withOpacity(0.1),
             ),
-            // Text color - now using darkerGreen to match "Spending" text
-            foregroundColor: WidgetStateProperty.all(paleGreen),
-            // Text style with matching color
-            textStyle: WidgetStateProperty.all(buttonText(context).copyWith(
-              color: paleGreen,
-              fontWeight: FontWeight.w400,
-            )),
+            // High-contrast text color
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+            textStyle: WidgetStateProperty.all(
+              buttonText(context).copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       );
 
   static ThemeData darkTheme(BuildContext context) => ThemeData(
+        useMaterial3: true,
         primaryColor: darkPrimaryGreen,
         scaffoldBackgroundColor: darkBackgroundColor,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          },
+        ),
         colorScheme: const ColorScheme.dark(
           primary: darkPrimaryGreen,
           secondary: darkLightGreen,
           surface: darkBackgroundColor,
           onPrimary: darkTextColor,
+          onSurface: darkTextColor,
         ),
         textTheme: TextTheme(
           headlineLarge: headlineLarge(context).copyWith(color: darkTextColor),
           headlineMedium:
               headlineMedium(context).copyWith(color: darkTextColor),
           bodyLarge: bodyLarge(context).copyWith(color: darkSecondaryTextColor),
+        ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          backgroundColor: darkBackgroundColor,
+          foregroundColor: darkTextColor,
+          centerTitle: false,
+        ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: darkBackgroundColor,
+          selectedItemColor: darkDarkGreen,
+          unselectedItemColor: darkSecondaryTextColor,
+          selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500),
+          type: BottomNavigationBarType.fixed,
+        ),
+        cardTheme: CardTheme(
+          color: darkBackgroundColor,
+          elevation: 1,
+          shadowColor: Colors.black.withOpacity(0.4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        listTileTheme: ListTileThemeData(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          iconColor: darkDarkGreen,
+          textColor: darkTextColor,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.06),
+          hintStyle: TextStyle(color: darkSecondaryTextColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: darkDarkGreen, width: 1),
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
@@ -140,10 +238,10 @@ class AppTheme {
             overlayColor: WidgetStateProperty.all(
               darkDarkerGreen.withOpacity(0.1),
             ),
-            foregroundColor: WidgetStateProperty.all(darkPaleGreen),
+            foregroundColor: WidgetStateProperty.all(Colors.white),
             textStyle: WidgetStateProperty.all(buttonText(context).copyWith(
-              color: darkPaleGreen,
-              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             )),
           ),
         ),

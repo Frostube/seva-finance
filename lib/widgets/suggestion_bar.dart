@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/categorization_service.dart';
-import '../theme/colors.dart';
+// import '../theme/app_theme.dart';
 
 class SuggestionBar extends StatelessWidget {
   final List<CategorySuggestion> suggestions;
@@ -28,7 +28,7 @@ class SuggestionBar extends StatelessWidget {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
               ),
             ),
             const SizedBox(width: 8),
@@ -36,7 +36,7 @@ class SuggestionBar extends StatelessWidget {
               'Getting suggestions...',
               style: GoogleFonts.inter(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
           ],
@@ -52,7 +52,7 @@ class SuggestionBar extends StatelessWidget {
           'No suggestions right now.',
           style: GoogleFonts.inter(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
       );
@@ -61,10 +61,10 @@ class SuggestionBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
           width: 1,
         ),
       ),
@@ -76,7 +76,7 @@ class SuggestionBar extends StatelessWidget {
               Icon(
                 Icons.lightbulb_outline,
                 size: 16,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 6),
               Text(
@@ -84,7 +84,7 @@ class SuggestionBar extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -94,7 +94,7 @@ class SuggestionBar extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: suggestions.map((suggestion) {
-              return _buildSuggestionChip(suggestion);
+              return _buildSuggestionChip(context, suggestion);
             }).toList(),
           ),
         ],
@@ -102,7 +102,7 @@ class SuggestionBar extends StatelessWidget {
     );
   }
 
-  Widget _buildSuggestionChip(CategorySuggestion suggestion) {
+  Widget _buildSuggestionChip(BuildContext context, CategorySuggestion suggestion) {
     return GestureDetector(
       onTap: () => onSuggestionTap(suggestion),
       child: Container(
@@ -111,7 +111,7 @@ class SuggestionBar extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.primary.withOpacity(0.2),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
             width: 1,
           ),
           boxShadow: [
@@ -139,14 +139,14 @@ class SuggestionBar extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppColors.onBackground,
+             color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(width: 4),
             Icon(
               Icons.arrow_right_alt,
               size: 14,
-              color: AppColors.primary.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
             ),
           ],
         ),
@@ -189,7 +189,7 @@ class ChipList extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 6),
@@ -203,10 +203,10 @@ class ChipList extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.secondary.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
@@ -214,7 +214,7 @@ class ChipList extends StatelessWidget {
                     tag,
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: AppColors.secondary,
+                      color: Theme.of(context).colorScheme.secondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

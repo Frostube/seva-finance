@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 // import 'package:google_fonts/google_fonts.dart';
-import '../theme/colors.dart';
+import '../theme/app_theme.dart';
 
 class ChatButton extends StatefulWidget {
   final VoidCallback onTap;
@@ -59,14 +59,14 @@ class _ChatButtonState extends State<ChatButton>
                 height: 56,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryVariant],
+                    colors: const [AppTheme.darkGreen, AppTheme.primaryGreen],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppTheme.darkGreen.withOpacity(0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -92,7 +92,7 @@ class _ChatButtonState extends State<ChatButton>
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: AppColors.primary,
+                             color: AppTheme.darkGreen,
                             width: 2,
                           ),
                         ),
@@ -101,7 +101,7 @@ class _ChatButtonState extends State<ChatButton>
                             width: 4,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
+                               color: AppTheme.darkGreen,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),

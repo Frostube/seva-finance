@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/chat_service.dart';
-import '../theme/colors.dart';
+// import '../theme/colors.dart'; // Deprecated in favor of AppTheme / ColorScheme
 import '../theme/app_theme.dart';
 
 class ChatBubble extends StatelessWidget {

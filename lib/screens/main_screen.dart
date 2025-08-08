@@ -96,7 +96,7 @@ class _MainScreenState extends State<MainScreen> {
               top: false,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -108,10 +108,10 @@ class _MainScreenState extends State<MainScreen> {
                 child: BottomNavigationBar(
                   currentIndex: _currentIndex,
                   onTap: _onNavigate,
-                  type: BottomNavigationBarType.fixed,
-                  backgroundColor: Colors.white,
-                  selectedItemColor: const Color(0xFF1B4332),
-                  unselectedItemColor: Colors.grey[400],
+                  type: Theme.of(context).bottomNavigationBarTheme.type ?? BottomNavigationBarType.fixed,
+                  backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+                  selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+                  unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
                   showUnselectedLabels: true,
                   items: const [
                     BottomNavigationBarItem(

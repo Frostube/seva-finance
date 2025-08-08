@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seva_finance/models/expense.dart';
-import 'package:seva_finance/theme/colors.dart';
+import 'package:seva_finance/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -44,38 +44,44 @@ class ExpenseTile extends StatelessWidget {
     final categoryService = Provider.of<CategoryService>(context, listen: false);
     final categoryName = categoryService.getCategoryNameById(expense.categoryId, defaultName: expense.categoryId);
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: ListTile(
+        key: ValueKey<String>('${expense.id}_${expense.amount}_${expense.date.toIso8601String()}'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _getCategoryIcon(categoryName),
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
-        child: Icon(
-          _getCategoryIcon(categoryName),
-          color: AppColors.primary,
+        title: Text(
+          categoryName,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-      title: Text(
-        categoryName,
-        style: const TextStyle(
-          fontWeight: FontWeight.w500,
+        subtitle: Text(
+          expense.note ?? '',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+          ),
         ),
-      ),
-      subtitle: Text(
-        expense.note ?? '',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-        ),
-      ),
-      trailing: Text(
-        currencyFormat.format(expense.amount),
-        style: TextStyle(
-          color: expense.amount < 0 ? Colors.red : Colors.green,
-          fontWeight: FontWeight.w600,
+        trailing: Text(
+          currencyFormat.format(expense.amount),
+          style: TextStyle(
+            color: expense.amount < 0 ? Colors.red : AppTheme.darkGreen,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
